@@ -1,0 +1,13 @@
+{
+  "name": "matt-beard-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/site.test.mjs"
+  }
+}
