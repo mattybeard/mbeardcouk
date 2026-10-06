@@ -44,6 +44,14 @@ test('Homepage includes approved biography, expertise and GitHub', () => {
     assert.ok(html.includes(text), `Missing content: ${text}`);
   }
   assert.match(html, /class="skip-link" href="#main"/);
+  assert.ok(html.indexOf('Scottish Summit</h3>') < html.indexOf('D365PPUG Manchester'), 'Scottish Summit should be listed first');
+});
+
+test('Published pages contain no em or en dashes', () => {
+  for (const filename of readdirSync(site)) {
+    const text = readFileSync(path.join(site, filename), 'utf8');
+    assert.doesNotMatch(text, /[\u2013\u2014]|&[mn]dash;|&#821[12];/, `Dash found in ${filename}`);
+  }
 });
 
 test('Azure configuration preserves real 404s and security headers', () => {
