@@ -47,6 +47,16 @@ test('Homepage includes approved biography, expertise and GitHub', () => {
   assert.ok(html.indexOf('Scottish Summit</h3>') < html.indexOf('D365PPUG Manchester'), 'Scottish Summit should be listed first');
 });
 
+test('Homepage explains practical AI work and offers direct email contact', () => {
+  const html = readFileSync(path.join(site, 'index.html'), 'utf8');
+  for (const text of ['maximise their investment', 'data-input agents', 'manual entry',
+    'custom developer skills', 'consistent style across projects and repositories']) {
+    assert.ok(html.includes(text), `Missing content: ${text}`);
+  }
+  assert.match(html, /href="mailto:matt@mbeard\.co\.uk">Email me/);
+  assert.match(html, /class="button primary" href="https:\/\/github\.com\/mattybeard">Find me on GitHub/);
+});
+
 test('Published pages contain no em or en dashes', () => {
   for (const filename of readdirSync(site)) {
     const text = readFileSync(path.join(site, filename), 'utf8');
