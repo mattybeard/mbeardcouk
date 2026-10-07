@@ -74,10 +74,15 @@
     .community-head { display:grid; grid-template-columns:1fr 1fr; gap:50px; align-items:end; margin-bottom:55px; }
     .community-head p { max-width:500px; margin:0; font-size:19px; color:#c7d0cf; }
     .passes { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-    .pass { min-height:240px; padding:24px; color:white; border:1px solid #526063; display:flex; flex-direction:column; }
+    .pass { min-width:0; padding:28px; color:white; border:1px solid #526063; display:flex; flex-direction:column; }
+    .pass.summit { background:#29235c; border-top:4px solid #e31673; }
+    .pass.user-group { background:#24385e; border-top:4px solid #742774; }
     .pass small { font:700 11px Space Mono,monospace; text-transform:uppercase; }
-    .pass h3 { margin:auto 0 12px; font-size:29px; line-height:1.08; letter-spacing:-.05em; }
-    .pass p { margin:0; padding-top:13px; border-top:1px solid #526063; color:#c7d0cf; }
+    .event-brand { height:140px; display:flex; align-items:center; margin:24px 0; }
+    .event-brand img { display:block; max-width:100%; width:auto; height:auto; max-height:140px; }
+    .pass h3 { margin:0 0 12px; font-size:29px; line-height:1.15; letter-spacing:-.035em; }
+    .pass p { margin:0; padding:16px 0 24px; border-top:1px solid #ffffff40; color:#fff; }
+    .event-link { align-self:flex-start; margin-top:auto; font-size:14px; font-weight:700; text-underline-offset:5px; }
     footer { padding:95px 0 40px; }
     .footer-box { padding:48px; border:1px solid var(--line); background:#e9ece6; display:flex; align-items:center; justify-content:space-between; gap:40px; }
     .footer-box h2 { max-width:650px; }
@@ -176,9 +181,27 @@
       <div class="shell">
         <div class="community-head"><h2>Community events.</h2><p>I’ve been organising Microsoft community events for years. They’re where I learn the most, and where plenty of people give their first talk.</p></div>
         <div class="passes">
-          <article class="pass"><small>Organiser · Since 2020</small><h3>Scottish Summit</h3><p>Community-run Microsoft conference</p></article>
-          <article class="pass"><small>Lead organiser · Current</small><h3>D365PPUG Manchester All Day</h3><p>Dynamics 365 &amp; Power Platform user group</p></article>
-          <article class="pass"><small>Former organiser</small><h3>D365PPUG London All Day</h3><p>Dynamics 365 &amp; Power Platform user group</p></article>
+          <article class="pass summit">
+            <small>Organiser · Since 2020</small>
+            <div class="event-brand"><img src="/assets/scottish-summit.svg" alt="" width="1832" height="2022" loading="lazy"></div>
+            <h3>Scottish Summit</h3>
+            <p>Community-run Microsoft conference</p>
+            <a class="event-link" href="https://scottishsummit.com/">Visit Scottish Summit ↗</a>
+          </article>
+          <article class="pass user-group">
+            <small>Lead organiser · Current</small>
+            <div class="event-brand"><img src="/assets/d365ppug.png" alt="" width="768" height="197" loading="lazy"></div>
+            <h3>D365PPUG Manchester All Day</h3>
+            <p>Dynamics 365 &amp; Power Platform user group</p>
+            <a class="event-link" href="https://www.d365ppug.com/manchester/">Visit Manchester user group ↗</a>
+          </article>
+          <article class="pass user-group">
+            <small>Former organiser</small>
+            <div class="event-brand"><img src="/assets/d365ppug.png" alt="" width="768" height="197" loading="lazy"></div>
+            <h3>D365PPUG London All Day</h3>
+            <p>Dynamics 365 &amp; Power Platform user group</p>
+            <a class="event-link" href="https://www.d365ppug.com/london/">Visit London user group ↗</a>
+          </article>
         </div>
       </div>
     </section>
