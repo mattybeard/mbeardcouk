@@ -49,7 +49,8 @@ test('Homepage includes approved biography, expertise and GitHub', () => {
 
 test('Homepage explains practical AI work and offers direct email contact', () => {
   const html = readFileSync(path.join(site, 'index.html'), 'utf8');
-  for (const text of ['maximise their investment', 'data-input agents', 'manual entry',
+  for (const text of ['maximise their investment', 'design and implement agents', 'data entry',
+    'complex configurations', 'repetitive tasks',
     'custom developer skills', 'consistent style across projects and repositories']) {
     assert.ok(html.includes(text), `Missing content: ${text}`);
   }
