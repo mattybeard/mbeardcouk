@@ -47,11 +47,39 @@ test('Homepage includes approved biography, expertise and GitHub', () => {
   assert.ok(html.indexOf('Scottish Summit</h3>') < html.indexOf('D365PPUG Manchester'), 'Scottish Summit should be listed first');
 });
 
+test('Homepage explains practical AI work and offers direct email contact', () => {
+  const html = readFileSync(path.join(site, 'index.html'), 'utf8');
+  for (const text of ['maximise their investment', 'design and implement agents', 'data entry',
+    'complex configurations', 'repetitive tasks',
+    'custom developer skills', 'consistent style across projects and repositories']) {
+    assert.ok(html.includes(text), `Missing content: ${text}`);
+  }
+  assert.match(html, /href="mailto:matt@mbeard\.co\.uk">Email me/);
+  assert.match(html, /class="button primary" href="https:\/\/github\.com\/mattybeard">Find me on GitHub/);
+});
+
 test('Published pages contain no em or en dashes', () => {
-  for (const filename of readdirSync(site)) {
+  for (const filename of readdirSync(site).filter((name) => /\.(html|json|svg)$/.test(name))) {
     const text = readFileSync(path.join(site, filename), 'utf8');
     assert.doesNotMatch(text, /[\u2013\u2014]|&[mn]dash;|&#821[12];/, `Dash found in ${filename}`);
   }
+});
+
+test('Community cards use local event logos and official website links', () => {
+  const html = readFileSync(path.join(site, 'index.html'), 'utf8');
+  assert.match(html, /class="pass summit"/);
+  assert.equal([...html.matchAll(/class="pass user-group"/g)].length, 2);
+  for (const url of ['https://scottishsummit.com/', 'https://www.d365ppug.com/manchester/',
+    'https://www.d365ppug.com/london/']) {
+    assert.ok(html.includes(`href="${url}"`), `Missing event link: ${url}`);
+  }
+  assert.match(html, /src="\/assets\/scottish-summit\.svg" alt="" width="1832" height="2022"/);
+  assert.equal([...html.matchAll(/src="\/assets\/d365ppug\.png" alt="" width="768" height="197"/g)].length, 2);
+  const logo = readFileSync(path.join(site, 'assets', 'scottish-summit.svg'), 'utf8');
+  assert.match(logo, /<svg\b/);
+  assert.doesNotMatch(logo, /<script\b|<foreignObject\b|\bon\w+=|(?:href|src)=["']https?:/i);
+  assert.equal(readFileSync(path.join(site, 'assets', 'd365ppug.png')).subarray(0, 8).toString('hex'),
+    '89504e470d0a1a0a');
 });
 
 test('Azure configuration preserves real 404s and security headers', () => {
@@ -63,5 +91,6 @@ test('Azure configuration preserves real 404s and security headers', () => {
 });
 
 test('Deployment directory contains only intended public files', () => {
-  assert.deepEqual(readdirSync(site).sort(), ['404.html', 'favicon.svg', 'index.html', 'staticwebapp.config.json']);
+  assert.deepEqual(readdirSync(site).sort(), ['404.html', 'assets', 'favicon.svg', 'index.html', 'staticwebapp.config.json']);
+  assert.deepEqual(readdirSync(path.join(site, 'assets')).sort(), ['d365ppug.png', 'scottish-summit.svg']);
 });

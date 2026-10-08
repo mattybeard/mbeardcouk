@@ -6,6 +6,7 @@ Plain HTML and CSS: no framework, package installation, build step, API or datab
 ## Structure
 
 - `site/`: the **only** directory published to Azure. Edit `site/index.html` for the live site.
+- `site/assets/`: locally hosted official community-event logos.
 - `tests/site.test.mjs`: dependency-free structure, content, privacy and local-link checks.
 - `scripts/serve.mjs`: local preview with redirects, the custom 404 and configured headers.
 - `.github/workflows/validate.yml`: runs the checks on pushes and pull requests. It does not deploy.
@@ -16,6 +17,18 @@ The site uses Google Fonts with system fallbacks. There are no analytics, cookie
 or tracking scripts. The MB monogram is intentional; no real portrait is required.
 GitHub is the current contact destination. Old design mocks are kept locally in
 `mocks/` and excluded from Git.
+
+### Community-event branding
+
+The cards retain the organiser roles and use the events' official logos without
+recolouring them. Assets are hosted locally, so viewing the page does not send
+image requests to the event websites.
+
+- Scottish Summit: [official logo](https://scottishsummit.com/_next/static/image/src/images/logo.994c8c82e41624859d6b2693fffcf483.svg),
+  with navy `#29235c` and pink `#e31673` from the official site's palette.
+- D365PPUG: [official white logo](https://www.d365ppug.com/wp-content/uploads/2022/01/D365PPUG-Generic-logo-initials-white.png),
+  with navy `#24385e` and purple `#742774` from the official site's palette.
+  The same group branding is used for Manchester and London, with separate links.
 
 ## Local preview
 
