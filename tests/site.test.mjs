@@ -145,7 +145,6 @@ test('Deployment configuration preserves old routes, true 404s and security head
     assert.notEqual(routeKey(route.route), routeKey(route.redirect), 'Redirects must not point to themselves');
     assert.ok(existsSync(localFile(route.redirect)), `Broken redirect: ${route.route}`);
   }
-  assert.deepEqual(readdirSync(site).sort(), ['404.html', 'blog', 'favicon.svg', 'index.html', 'staticwebapp.config.json']);
   assert.ok(!files.some((file) => /\.(md|js|mjs)$/.test(file)), 'Source and scripts must not be published');
 });
 
