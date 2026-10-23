@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { parse, parseFragment } from 'parse5';
 import { loadBlog, postPath, tagPath, renderContent, textContent, walk } from '../scripts/blog-content.mjs';
+import { routeKey } from '../scripts/hosting.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const site = path.join(root, 'dist');
@@ -137,13 +138,33 @@ test('Deployment configuration preserves old routes, true 404s and security head
   for (const original of history.posts) {
     const old = new URL(original.source).pathname;
     for (const route of [old, old.replace(/\/$/, ''), `/blog/${original.slug}/`, `/blog/${original.slug}`]) {
-      assert.deepEqual(config.routes.find((item) => item.route === route), { route, redirect: `/blog/${original.folder}/`, statusCode: 301 });
+      assert.deepEqual(config.routes.find((item) => routeKey(item.route) === routeKey(route)), { route: routeKey(route), redirect: `/blog/${original.folder}/`, statusCode: 301 });
     }
   }
   for (const route of config.routes.filter((item) => item.redirect)) {
-    assert.notEqual(route.route, route.redirect, 'Redirects must not point to themselves');
+    assert.notEqual(routeKey(route.route), routeKey(route.redirect), 'Redirects must not point to themselves');
     assert.ok(existsSync(localFile(route.redirect)), `Broken redirect: ${route.route}`);
   }
   assert.deepEqual(readdirSync(site).sort(), ['404.html', 'blog', 'favicon.svg', 'index.html', 'staticwebapp.config.json']);
   assert.ok(!files.some((file) => /\.(md|js|mjs)$/.test(file)), 'Source and scripts must not be published');
+});
+
+test('Azure route matching covers feed and topic paths with and without trailing slashes', () => {
+  const config = JSON.parse(readFileSync(localFile('/staticwebapp.config.json'), 'utf8'));
+  for (const route of ['/feed', '/feed/', '/tag/xbox', '/tag/xbox/']) {
+    const matches = config.routes.filter((item) => routeKey(item.route) === routeKey(route));
+    assert.equal(matches.length, 1, route);
+    assert.equal(matches[0].redirect, route.startsWith('/feed') ? '/blog/feed.xml' : '/blog/tag/xbox/');
+  }
+  assert.ok(!config.routes.some((item) => routeKey(item.route) === '/blog'));
+});
+
+test('Azure route paths are unique when trailing slashes are ignored', () => {
+  const config = JSON.parse(readFileSync(localFile('/staticwebapp.config.json'), 'utf8'));
+  const seen = new Set();
+  for (const { route } of config.routes) {
+    const key = route.replace(/\/+$/, '') || '/';
+    assert.ok(!seen.has(key), `Duplicate Azure route: ${route}`);
+    seen.add(key);
+  }
 });

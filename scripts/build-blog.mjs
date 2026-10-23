@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { parse } from 'parse5';
 import { escapeHtml as e, plainText, postPath, tagPath, renderContent, loadBlog, walk } from './blog-content.mjs';
+import { routeKey } from './hosting.mjs';
 
 const root = process.argv[2] ? path.resolve(process.argv[2]) : fileURLToPath(new URL('../', import.meta.url));
 const site = path.join(root, 'dist');
@@ -118,19 +119,26 @@ await writeFile(path.join(site, 'blog', 'feed.xml'), `${feed}\n`);
 const configPath = path.join(site, 'staticwebapp.config.json');
 const config = JSON.parse(await readFile(configPath, 'utf8'));
 const redirect = (route, target) => ({ route, redirect: target, statusCode: 301 });
-const redirects = [redirect('/blog', '/blog/'), redirect('/blog-prototype.html', '/blog/'), redirect('/feed', '/blog/feed.xml'), redirect('/feed/', '/blog/feed.xml')];
+const redirects = [redirect('/blog-prototype.html', '/blog/'), redirect('/feed', '/blog/feed.xml')];
 for (const post of posts) {
   if (!post.history) continue;
   const oldPath = new URL(post.history.source).pathname;
-  redirects.push(redirect(oldPath, postPath(post)), redirect(oldPath.replace(/\/$/, ''), postPath(post)));
+  redirects.push(redirect(routeKey(oldPath), postPath(post)));
   const slugPath = `/blog/${post.history.slug}`;
-  redirects.push(redirect(`${slugPath}/`, postPath(post)), redirect(slugPath, postPath(post)));
+  redirects.push(redirect(slugPath, postPath(post)));
 }
 for (const tag of activeTags) {
-  redirects.push(redirect(`/tag/${tag.slug}/`, tagPath(tag)), redirect(`/tag/${tag.slug}`, tagPath(tag)));
+  redirects.push(redirect(`/tag/${tag.slug}`, tagPath(tag)));
 }
-const ownedRoutes = new Set(redirects.map((route) => route.route));
-config.routes = [...config.routes.filter((route) => !ownedRoutes.has(route.route)), ...redirects];
+const ownedRoutes = new Set(redirects.map((route) => routeKey(route.route)));
+config.routes = [...config.routes.filter((route) => !ownedRoutes.has(routeKey(route.route))), ...redirects];
+const seenRoutes = new Set();
+for (const rule of config.routes) {
+  const key = routeKey(rule.route);
+  if (seenRoutes.has(key)) throw new Error(`Duplicate Azure route: ${rule.route}`);
+  if (rule.redirect && key === routeKey(rule.redirect)) throw new Error(`Azure redirect points to itself: ${rule.route}`);
+  seenRoutes.add(key);
+}
 const formattedConfig = JSON.stringify(config, null, 2);
 const configJson = Buffer.byteLength(formattedConfig) < 20000 ? formattedConfig : JSON.stringify(config);
 if (Buffer.byteLength(`${configJson}\n`) > 20000) throw new Error('Azure route configuration exceeds 20 KB.');

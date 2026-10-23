@@ -180,6 +180,9 @@ The generated version in `dist/` adds redirects for all original dated article
 paths, previous post-name URLs, old topic paths, feed paths and the prototype URL.
 Both variants of an old article path, with and without its trailing slash, lead
 directly to the date-based page. Unknown paths remain genuine 404 responses.
+Azure treats route paths with and without a trailing slash as equivalent.
+The generator emits one rule per path, rejects equivalent duplicate routes and
+self-redirects, and the local preview uses the same trailing-slash matching.
 
 Configure the old domain separately when ready:
 

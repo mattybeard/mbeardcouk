@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { routeKey } from './hosting.mjs';
 
 const root = fileURLToPath(new URL('../dist/', import.meta.url));
 const config = JSON.parse(await readFile(path.join(root, 'staticwebapp.config.json'), 'utf8'));
@@ -28,7 +29,7 @@ createServer(async (req, res) => {
     res.end('Bad request');
     return;
   }
-  const route = config.routes.find((item) => item.route === pathname);
+  const route = config.routes.find((item) => routeKey(item.route) === routeKey(pathname));
   Object.assign(headers, route?.headers);
   if (route?.redirect) {
     res.writeHead(route.statusCode ?? 302, { ...headers, Location: route.redirect });

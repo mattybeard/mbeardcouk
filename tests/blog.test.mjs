@@ -114,6 +114,15 @@ test('Publishing Markdown updates lists, topics and feed, excludes drafts and cl
     assert.ok(!existsSync(outputFile('blog', 'tag', 'native-topic')), 'Unused topic pages must be removed');
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' }, '[Broken link](/blog/2026-10-22/)');
     assert.throws(build, /ENOENT/, 'Links to unpublished articles must fail the build');
+    await add('2026-10-24', { published: '2026-10-24T12:00:00Z' });
+    const configPath = path.join(directory, 'site', 'staticwebapp.config.json');
+    const baseConfig = JSON.parse(await readFile(configPath, 'utf8'));
+    baseConfig.routes.push({ route: '/duplicate', redirect: '/' }, { route: '/duplicate/', redirect: '/' });
+    await writeFile(configPath, JSON.stringify(baseConfig));
+    assert.throws(build, /Duplicate Azure route: \/duplicate\//, 'The build must reject slash-equivalent base routes');
+    baseConfig.routes = [{ route: '/loop', redirect: '/loop/', statusCode: 301 }];
+    await writeFile(configPath, JSON.stringify(baseConfig));
+    assert.throws(build, /Azure redirect points to itself: \/loop/, 'The build must reject slash-equivalent self-redirects');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
