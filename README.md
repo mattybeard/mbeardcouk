@@ -12,6 +12,7 @@ HTML and CSS, with no JavaScript, database, API or CMS server.
   RSS identifiers, media checksums and content regression fingerprints.
 - `site/`: static source files, including the homepage, shared blog CSS,
   favicon, custom 404 and base Azure configuration.
+- `site/assets/`: locally hosted official community-event logos.
 - `scripts/blog-content.mjs`: Markdown loading, metadata validation and HTML rendering.
 - `scripts/build-blog.mjs`: static site generation and local-link validation.
 - `scripts/serve.mjs`: local preview with redirects, headers and the custom 404.
@@ -21,6 +22,18 @@ HTML and CSS, with no JavaScript, database, API or CMS server.
 
 The site uses Google Fonts with system fallbacks. There are no analytics,
 cookies or tracking scripts. Old design mocks remain in the ignored `mocks/` folder.
+
+### Community-event branding
+
+The cards retain the organiser roles and use the events' official logos without
+recolouring them. Assets are hosted locally, so viewing the page does not send
+image requests to the event websites.
+
+- Scottish Summit: [official logo](https://scottishsummit.com/_next/static/image/src/images/logo.994c8c82e41624859d6b2693fffcf483.svg),
+  with navy `#29235c` and pink `#e31673` from the official site's palette.
+- D365PPUG: [official white logo](https://www.d365ppug.com/wp-content/uploads/2022/01/D365PPUG-Generic-logo-initials-white.png),
+  with navy `#24385e` and purple `#742774` from the official site's palette.
+  The same group branding is used for Manchester and London, with separate links.
 
 ## Local preview
 
