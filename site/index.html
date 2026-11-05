@@ -96,7 +96,7 @@
     @media(max-width:850px) {
       .hero { grid-template-columns:1fr; padding:38px 25px; }
       .profile { margin-top:15px; }
-      .nav-links a:not(.nav-pill) { display:none; }
+      .nav-links a:not(.nav-pill):not(.nav-blog) { display:none; }
       .cards,.passes { grid-template-columns:1fr; }
       .community-head { grid-template-columns:1fr; }
       .about-grid,.ai-detail { grid-template-columns:1fr; gap:26px; }
@@ -108,6 +108,7 @@
     }
     @media(max-width:420px) {
       .brand { font-size:17px; }
+      .nav-links { gap:12px; }
       .nav-pill { padding:8px 10px; }
       .hero { padding:32px 20px; }
       h1 { font-size:48px; }
@@ -122,7 +123,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <nav class="shell" aria-label="Main navigation">
     <a class="brand" href="/" aria-label="Matt Beard homepage">MATT/BEARD</a>
-    <div class="nav-links"><a href="#about">About</a><a href="#playbook">Playbook</a><a href="https://github.com/mattybeard">GitHub ↗</a><a class="nav-pill" href="#contact">Let’s connect ↗</a></div>
+    <div class="nav-links"><a href="#about">About</a><a href="#playbook">Playbook</a><a class="nav-blog" href="/blog/">Blog</a><a href="https://github.com/mattybeard">GitHub ↗</a><a class="nav-pill" href="#contact">Let’s connect ↗</a></div>
   </nav>
 
   <main id="main">

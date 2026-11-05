@@ -7,7 +7,14 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node scripts/serve.mjs",
-    "test": "node --test tests/site.test.mjs"
+    "start": "npm run build && node scripts/serve.mjs",
+    "build": "node scripts/build-blog.mjs",
+    "blog:build": "node scripts/build-blog.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "parse5": "^8.0.0",
+    "marked": "^16.0.0",
+    "yaml": "^2.8.1"
   }
 }
