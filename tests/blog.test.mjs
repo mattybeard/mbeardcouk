@@ -148,3 +148,17 @@ test('CI builds the deployment output and the author agent uses Markdown sources
   assert.match(agent, /npm run build/);
   assert.doesNotMatch(agent, /content\/blog\.json/);
 });
+
+test('Azure upload and preview cleanup both request and pass a GitHub identity token', async () => {
+  const workflow = parseYaml(await readFile(path.join(root, '.github', 'workflows', 'azure-static-web-apps-proud-desert-0fa7b880f.yml'), 'utf8'));
+  for (const jobName of ['build_and_deploy_job', 'close_pull_request_job']) {
+    const job = workflow.jobs[jobName];
+    assert.equal(job.permissions?.['id-token'], 'write', `${jobName} must be allowed to request an identity token`);
+    const deployIndex = job.steps.findIndex((step) => step.uses?.startsWith('Azure/static-web-apps-deploy'));
+    const tokenStep = job.steps.slice(0, deployIndex).find((step) => step.id === 'idtoken');
+    assert.ok(tokenStep?.uses.startsWith('actions/github-script@'), `${jobName} must request its own identity token before calling Azure`);
+    assert.equal(tokenStep.with.script.trim(), 'return await core.getIDToken()');
+    assert.equal(tokenStep.with['result-encoding'], 'string');
+    assert.equal(job.steps[deployIndex].with.github_id_token, '${{ steps.idtoken.outputs.result }}');
+  }
+});
