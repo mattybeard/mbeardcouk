@@ -176,6 +176,10 @@ Both GitHub workflows install dependencies using `npm ci` and run `npm test`.
 The Azure workflow then uploads `dist/` with Azure build detection disabled.
 The validation workflow does not deploy. Pull requests use Azure preview
 environments; pushes to `main` deploy to production.
+Closing a pull request deletes its Azure preview environment. Both upload and
+cleanup jobs request a GitHub identity token and pass it to the Azure action
+alongside the deployment secret. Keep authentication configured in both jobs;
+a successful production deployment does not verify preview cleanup.
 
 For a new Azure Static Web App connection:
 
