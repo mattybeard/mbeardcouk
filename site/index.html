@@ -10,6 +10,8 @@
   <meta property="og:title" content="Matt Beard | From the boardroom to the build">
   <meta property="og:description" content="Hands-on developer, technology leader and six-time Microsoft MVP. Data, AI, agents, plugins and Power Platform.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/analytics.css">
+  <script src="/analytics.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -210,7 +212,13 @@
 
   <footer class="shell" id="contact">
     <div class="footer-box"><div class="footer-copy"><h2>Let’s talk.</h2><p>If you’re working on something that needs a hands-on developer, a technology leader or an outside view, I’d like to hear about it.</p></div><div class="footer-actions"><a class="button primary" href="https://github.com/mattybeard">Find me on GitHub ↗</a><a class="button" href="mailto:matt@mbeard.co.uk">Email me ↗</a></div></div>
-    <div class="fineprint"><span><a href="https://github.com/mattybeard">GitHub ↗</a></span><span>© 2026 Matt Beard</span></div>
+    <div class="fineprint"><span><a href="https://github.com/mattybeard">GitHub ↗</a></span><a href="/privacy.html">Privacy</a><span>© 2026 Matt Beard</span></div>
   </footer>
+  <section id="analytics-consent" class="analytics-consent" aria-labelledby="analytics-heading" hidden>
+    <h2 id="analytics-heading">Optional analytics</h2>
+    <p>This site counts page loads without cookies or visitor identifiers until you choose. Accept analytics to allow Microsoft Application Insights cookies for visitor and session counts and approximate countries, regions and cities. Reject analytics to stop all counting. Your choice does not affect the site. <a href="/privacy.html">Read the privacy notice</a>.</p>
+    <p id="analytics-status" role="status"></p>
+    <div class="analytics-actions"><button id="analytics-accept" type="button">Accept analytics</button><button id="analytics-reject" type="button">Reject analytics</button></div>
+  </section>
 </body>
 </html>
