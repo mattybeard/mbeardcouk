@@ -1,0 +1,9 @@
+[hidden] { display:none !important; }
+.analytics-consent { position:fixed; bottom:16px; left:16px; right:16px; z-index:20; max-width:760px; max-height:80vh; overflow:auto; margin:auto; padding:24px; border:1px solid #596367; background:#fff; color:#252c30; box-shadow:0 4px 24px #0002; font:16px/1.5 system-ui,sans-serif; }
+.analytics-consent h2 { margin:0 0 12px; font-size:24px; line-height:1.2; letter-spacing:normal; }
+.analytics-consent p { margin:12px 0; }
+.analytics-consent a { color:#365d60; text-underline-offset:3px; }
+.analytics-actions { display:flex; flex-wrap:wrap; gap:12px; }
+.analytics-actions button { padding:12px 18px; border:1px solid #365d60; border-radius:4px; background:#fff; color:#365d60; font:600 16px system-ui,sans-serif; cursor:pointer; }
+#analytics-settings { padding:0; border:0; background:none; color:inherit; font:inherit; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.analytics-consent :focus-visible, #analytics-settings:focus-visible { outline:3px solid #365d60; outline-offset:4px; }

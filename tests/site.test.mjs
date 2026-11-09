@@ -133,7 +133,7 @@ test('Deployment configuration preserves old routes, true 404s and security head
   assert.equal(config.navigationFallback, undefined);
   assert.equal(config.responseOverrides['404'].rewrite, '/404.html');
   assert.match(config.globalHeaders['Content-Security-Policy'], /frame-ancestors 'none'/);
-  assert.doesNotMatch(config.globalHeaders['Content-Security-Policy'], /script-src/);
+  assert.match(config.globalHeaders['Content-Security-Policy'], /script-src 'self' https:\/\/js\.monitor\.azure\.com/);
   assert.deepEqual(config.routes[0], { route: '/index.html', redirect: '/', statusCode: 301 });
   for (const original of history.posts) {
     const old = new URL(original.source).pathname;
@@ -145,7 +145,8 @@ test('Deployment configuration preserves old routes, true 404s and security head
     assert.notEqual(routeKey(route.route), routeKey(route.redirect), 'Redirects must not point to themselves');
     assert.ok(existsSync(localFile(route.redirect)), `Broken redirect: ${route.route}`);
   }
-  assert.ok(!files.some((file) => /\.(md|js|mjs)$/.test(file)), 'Source and scripts must not be published');
+  assert.ok(!files.some((file) => /\.(md|mjs)$/.test(file)), 'Build and article source must not be published');
+  assert.deepEqual(files.filter((file) => file.endsWith('.js')).map((file) => path.relative(site, file)), ['analytics.js']);
 });
 
 test('Azure route matching covers feed and topic paths with and without trailing slashes', () => {
@@ -165,5 +166,26 @@ test('Azure route paths are unique when trailing slashes are ignored', () => {
     const key = route.replace(/\/+$/, '') || '/';
     assert.ok(!seen.has(key), `Duplicate Azure route: ${route}`);
     seen.add(key);
+  }
+});
+
+test('Homepage, privacy notice and every blog page include consent controls and tracking', () => {
+  for (const filename of pages.filter((file) => !file.endsWith(`${path.sep}404.html`))) {
+    const html = readFileSync(filename, 'utf8');
+    assert.match(html, /<script src="\/analytics.js" defer><\/script>/);
+    assert.match(html, /href="\/analytics.css"/);
+    for (const id of ['analytics-consent', 'analytics-status', 'analytics-accept', 'analytics-reject']) {
+      assert.equal(ids(html).filter((value) => value === id).length, 1, `${filename}: ${id}`);
+    }
+    assert.match(html, /id="analytics-consent"[^>]*hidden/);
+    if (filename === path.join(site, 'privacy.html')) {
+      assert.match(html, /id="analytics-settings"[^>]*hidden/);
+      assert.doesNotMatch(html, /This website is operated by Matt Beard/);
+    } else {
+      assert.ok(!ids(html).includes('analytics-settings'));
+      assert.match(html, /href="\/privacy.html"/);
+    }
+    assert.ok(html.includes('counts page loads without cookies or visitor identifiers until you choose.'));
+    assert.ok(html.includes('Reject analytics to stop all counting.'));
   }
 });

@@ -2,7 +2,8 @@
 
 A static homepage and Markdown blog. Authors edit Markdown and local images;
 Node.js generates HTML for preview and deployment. The published site uses
-HTML and CSS, with no JavaScript, database, API or CMS server.
+HTML and CSS with optional consent-based analytics JavaScript, and no database,
+API or CMS server.
 
 ## Structure
 
@@ -20,8 +21,11 @@ HTML and CSS, with no JavaScript, database, API or CMS server.
 - `tests/`: source validation, publishing workflow and migration regression tests.
 - `.github/agents/blog-author.agent.md`: the Blog author agent.
 
-The site uses Google Fonts with system fallbacks. There are no analytics,
-cookies or tracking scripts. Old design mocks remain in the ignored `mocks/` folder.
+The site uses Google Fonts with system fallbacks. Cookie-free page-load counting
+runs until a visitor rejects analytics. The Application Insights SDK loads only
+after consent on `https://www.mbeard.co.uk` or localhost. It counts page views,
+visitors and sessions with approximate geographic breakdowns.
+Old design mocks remain in the ignored `mocks/` folder.
 
 ### Community-event branding
 
@@ -209,5 +213,97 @@ Redirecting every article to the index would discard article links.
 Old `/wp-content/uploads/` paths are no longer published or redirected;
 all migrated articles link to their own `/blog/<date>/images/` files.
 
-Security headers prohibit scripts and embeds and permit Google Fonts styles
-and fonts. Change the policy deliberately if the site later needs other resources.
+Security headers permit local scripts, the Microsoft analytics CDN, the configured
+East US 2 ingestion endpoint, and Google Fonts styles and fonts. Embeds remain
+blocked. Change the policy deliberately if the site later needs other resources.
+
+### Visitor analytics
+
+`site/analytics.js` uses the public browser connection string for Application
+Insights. It is not an Azure management credential. No backend is needed.
+`site/privacy.html` describes collection and consent. The blog page template in
+`scripts/build-blog.mjs` includes the same tracking and consent controls.
+
+- `www.mbeard.co.uk` over HTTPS and localhost support basic counting and
+  consent-based visitor analytics. Azure
+  preview hostnames and the apex domain do not load the SDK. Canonical blog URLs
+  still use the apex domain, so visits there are excluded as requested.
+- Before a choice, a direct request sends one `BasicPageView` custom event per
+  page load without loading the SDK. It contains only the time, event name and
+  hostname, with `ai.location.ip` set to `0.0.0.0` to avoid geographic lookup.
+  Requests omit credentials and referrers. No visitor/session identifiers, page
+  paths or device details are included in the event. Azure still receives network
+  IP and HTTP request information, so do not describe collection as fully anonymous.
+  Confirm the stored event has no geographic fields when checking Azure ingestion.
+  Cookie-free counting is not automatically exempt from applicable consent rules.
+- Reject stops basic counting as well as consent-based analytics, including on
+  future page loads until the choice expires. An in-flight basic request is
+  cancelled where possible, but counts already received cannot be undone. Storage
+  errors disable basic counting until a preference can be read or saved.
+- Basic events also count accepted visits. Acceptance on the same page does not
+  send a second basic event. Do not add `BasicPageView` counts to `pageViews`;
+  accepted visits occur in both datasets.
+- Localhost, `127.0.0.1` and IPv6 loopback use the real consent and tracking flow.
+  Local counts and accepted visits appear in the same Application Insights resource
+  as production visits. Filter basic events by hostname and page views by URL.
+  Run `npm start` and open
+  `http://localhost:4280`. Follow the footer's **Privacy** link and use
+  **Analytics settings** on the privacy page to reopen the
+  prompt after choosing. To test a fresh visit, run
+  `localStorage.removeItem('analytics-consent-v1'); location.reload();` in the
+  browser console. Choices are separate for each browser origin.
+- Accept and reject have equal controls. The choice lasts 180 days in local
+  storage. Analytics settings lets visitors change it. Withdrawing consent
+  deletes host-only `ai_user` and `ai_session` cookies and reloads without flushing
+  queued telemetry. Other tabs also stop when the preference changes.
+  Dismissing the prompt moves keyboard focus to Analytics settings on the privacy
+  page, or to a Privacy link on other pages, without scrolling.
+- Only page-view telemetry is retained by the client initializer. Query strings,
+  fragments and referrers are excluded. Automatic exception, request and route
+  tracking are disabled. The SDK does not persist telemetry buffers in browser
+  storage. Anchor navigation does not count as another page view.
+- Counts describe consenting browsers, not all visitors or distinct people.
+  Blockers and deleted cookies affect the totals. Geographic estimates use IP
+  lookup and can be wrong, especially with VPNs.
+
+Before deploying, confirm the linked workspace's data location and retention in
+Azure and update the privacy notice if needed. The supplied ingestion endpoint
+is in East US 2. Keep default IP masking enabled. Set a budget alert and review
+the Application Insights and workspace ingestion limits. Those settings are
+managed in Azure, not in this repository.
+
+In the Application Insights resource, open **Logs** and run:
+
+```kusto
+customEvents
+| where timestamp >= ago(30d) and name == "BasicPageView"
+| where tostring(customDimensions.hostname) == "www.mbeard.co.uk"
+| summarize PageLoads = count() by bin(timestamp, 1d)
+| order by timestamp asc
+```
+
+This includes visits without a consent choice and accepted visits, but excludes
+visits with a saved rejection. It does not measure unique people. In workspace
+Logs use `AppEvents`, `TimeGenerated`, `Name` and `Properties` instead.
+
+For consent-based visitor and geographic reporting:
+
+```kusto
+pageViews
+| where timestamp >= ago(30d)
+| summarize PageViews = count(), Visitors = dcount(user_Id),
+    Sessions = dcount(session_Id) by Country = client_CountryOrRegion
+| order by PageViews desc
+```
+
+Add `client_StateOrProvince` or `client_City` to the grouping for finer geographic
+reports. `dcount` is approximate. From the linked workspace's Logs view, use
+`AppPageViews` with `TimeGenerated`, `UserId`, `SessionId` and `ClientCountryOrRegion`
+instead. The Azure Usage views also provide user and session reports.
+
+After deployment, accept analytics on the production hostname and check the
+browser Network panel for a successful `/v2/track` request. Data can take several
+minutes to appear in Logs. Reject analytics and confirm that no further telemetry
+requests occur and that the analytics cookies disappear. Local tests mock the SDK
+and basic ingestion. Browser validation confirmed Azure accepted a localhost
+basic event; other browser flow checks intercept ingestion.

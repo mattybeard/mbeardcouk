@@ -16,14 +16,8 @@ await cp(path.join(root, 'site'), site, { recursive: true });
 const origin = 'https://mbeard.co.uk';
 const footerYear = Math.max(...posts.map((post) => Number(post.published.slice(0, 4))));
 const dateLabel = (post) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${post.date}Z`));
-function excerpt(post) {
-  return post.description;
-}
-function topic(post) {
-  return post.category;
-}
 function meta(post) {
-  return `<div class="meta"><time datetime="${e(post.date.slice(0, 10))}">${dateLabel(post)}</time><span class="topic">${e(topic(post))}</span></div>`;
+  return `<div class="meta"><time datetime="${e(post.date.slice(0, 10))}">${dateLabel(post)}</time><span class="topic">${e(post.category)}</span></div>`;
 }
 function page({ title, description, pathname, body, article = false }) {
   return `<!doctype html>
@@ -45,6 +39,8 @@ function page({ title, description, pathname, body, article = false }) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/blog/blog.css">
+  <link rel="stylesheet" href="/analytics.css">
+  <script src="/analytics.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -53,7 +49,13 @@ function page({ title, description, pathname, body, article = false }) {
     <div class="nav-links"><a class="desktop-link" href="/#about">About</a><a class="desktop-link" href="/#playbook">Playbook</a><a href="/blog/" aria-current="${pathname === '/blog/' ? 'page' : 'true'}">Blog</a><a class="nav-pill" href="/#contact">Connect</a></div>
   </nav>
   <main class="shell" id="main">${body}</main>
-  <footer class="shell"><div class="fineprint"><span><a href="/">Back to the main site</a> / <a href="https://github.com/mattybeard">GitHub &#8599;</a> / <a href="/blog/feed.xml">RSS feed</a></span><span>&copy; ${footerYear} Matt Beard</span></div></footer>
+  <footer class="shell"><div class="fineprint"><span><a href="/">Back to the main site</a> / <a href="https://github.com/mattybeard">GitHub &#8599;</a> / <a href="/blog/feed.xml">RSS feed</a> / <a href="/privacy.html">Privacy</a></span><span>&copy; ${footerYear} Matt Beard</span></div></footer>
+  <section id="analytics-consent" class="analytics-consent" aria-labelledby="analytics-heading" hidden>
+    <h2 id="analytics-heading">Optional analytics</h2>
+    <p>This site counts page loads without cookies or visitor identifiers until you choose. Accept analytics to allow Microsoft Application Insights cookies for visitor and session counts and approximate countries, regions and cities. Reject analytics to stop all counting. Your choice does not affect the site. <a href="/privacy.html">Read the privacy notice</a>.</p>
+    <p id="analytics-status" role="status"></p>
+    <div class="analytics-actions"><button id="analytics-accept" type="button">Accept analytics</button><button id="analytics-reject" type="button">Reject analytics</button></div>
+  </section>
 </body>
 </html>
 `;
@@ -64,7 +66,7 @@ const visuals = {
   none: '',
 };
 function card(post) {
-  return `<article class="post">${visuals[post.illustration]}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(excerpt(post))}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
+  return `<article class="post">${visuals[post.illustration]}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(post.description)}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
 }
 function archiveList(items, headingLevel = 3) {
   const years = [...new Set(items.map((post) => post.date.slice(0, 4)))];
@@ -91,7 +93,7 @@ for (const [index, post] of posts.entries()) {
   const older = posts[index + 1];
   const toc = headings.length ? `<nav class="contents" aria-label="On this page"><span class="eyebrow">On this page</span><ol>${headings.map((heading) => `<li><a href="#${e(heading.id)}">${e(heading.title)}</a></li>`).join('')}</ol></nav>` : '';
   await writePage(postPath(post), page({
-    title: post.title, description: excerpt(post), pathname: postPath(post), article: true,
+    title: post.title, description: post.description, pathname: postPath(post), article: true,
     body: `<article><header class="article-header"><a class="back-link" href="/blog/">&#8592; All posts</a>${meta(post)}<h1>${e(post.title)}</h1><p class="byline">By <a href="/#about">Matt Beard</a></p>${post.history ? `<p class="historical-note">Originally published ${dateLabel(post)}. Product names, screenshots and preview features describe the software at the time of writing.</p>` : ''}</header>
       <div class="reading-layout"><div class="article-content">${html}</div><aside class="reading-aside">${toc}<div class="author-note"><span class="eyebrow">About the author</span><p>Matt Beard<br>Developer, Chief AI Officer and Microsoft MVP.</p><a href="/#about">More about Matt</a></div></aside></div>
       ${postTags.length ? `<nav class="post-tags" aria-label="Post topics">${postTags.map((tag) => `<a href="${tagPath(tag)}">${e(plainText(tag.name))}</a>`).join('')}</nav>` : ''}
@@ -112,7 +114,7 @@ for (const tag of activeTags) {
   }));
 }
 const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matt Beard's blog</title><link>${origin}/blog/</link><description>${e(description)}</description><language>en-GB</language><atom:link href="${origin}/blog/feed.xml" rel="self" type="application/rss+xml"/>${posts.map((post) => `<item><title>${e(post.title)}</title><link>${origin}${postPath(post)}</link><guid isPermaLink="false">${e(post.history?.guid ?? origin + postPath(post))}</guid><pubDate>${new Date(post.published).toUTCString()}</pubDate><description>${e(excerpt(post))}</description></item>`).join('')}</channel></rss>`;
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matt Beard's blog</title><link>${origin}/blog/</link><description>${e(description)}</description><language>en-GB</language><atom:link href="${origin}/blog/feed.xml" rel="self" type="application/rss+xml"/>${posts.map((post) => `<item><title>${e(post.title)}</title><link>${origin}${postPath(post)}</link><guid isPermaLink="false">${e(post.history?.guid ?? origin + postPath(post))}</guid><pubDate>${new Date(post.published).toUTCString()}</pubDate><description>${e(post.description)}</description></item>`).join('')}</channel></rss>`;
 await writeFile(path.join(site, 'blog', 'feed.xml'), `${feed}\n`);
 
 // Replace only redirects owned by this generator, leaving the site's other rules alone.

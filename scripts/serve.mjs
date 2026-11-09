@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL('../dist/', import.meta.url));
 const config = JSON.parse(await readFile(path.join(root, 'staticwebapp.config.json'), 'utf8'));
 const types = {
   '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.css': 'text/css',
+  '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json', '.xml': 'application/rss+xml; charset=utf-8',
   '.png': 'image/png', '.gif': 'image/gif', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',

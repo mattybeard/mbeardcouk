@@ -136,6 +136,10 @@ test('CI builds the deployment output and the author agent uses Markdown sources
   assert.ok(steps.slice(0, deployIndex).some((step) => step.run === 'npm test'));
   assert.equal(steps[deployIndex].with.app_location, './dist');
   assert.equal(steps[deployIndex].with.skip_app_build, true);
+  const closeStep = workflow.jobs.close_pull_request_job.steps.find((step) =>
+    step.uses?.startsWith('Azure/static-web-apps-deploy'));
+  assert.equal(closeStep.with.action, 'close');
+  assert.equal(closeStep.with.azure_static_web_apps_api_token, steps[deployIndex].with.azure_static_web_apps_api_token);
   const agent = await readFile(path.join(root, '.github', 'agents', 'blog-author.agent.md'), 'utf8');
   const frontmatter = parseYaml(agent.match(/^---\r?\n([\s\S]*?)\r?\n---/)[1]);
   assert.equal(frontmatter.name, 'Blog author');
