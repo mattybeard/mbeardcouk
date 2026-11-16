@@ -1,11 +1,12 @@
 (() => {
   'use strict';
 
-  const production = location.hostname === 'mbeard.co.uk' && location.protocol === 'https:';
+  const production = location.hostname === 'www.mbeard.co.uk' && location.protocol === 'https:';
   const localhost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   if (!production && !localhost) return;
 
-  const consentKey = 'analytics-consent-v1';
+  const consentKey = 'analytics-consent-v2';
+  const legacyConsentKey = 'analytics-consent-v1';
   const consentLifetime = 180 * 24 * 60 * 60 * 1000;
   const instrumentationKey = '8637d04b-f24d-4a63-87ff-436b395dcb76';
   const ingestionEndpoint = 'https://eastus2-3.in.applicationinsights.azure.com';
@@ -60,7 +61,9 @@
   function readConsent() {
     if (storageFailed) return undefined;
     try {
-      const saved = JSON.parse(localStorage.getItem(consentKey));
+      const current = localStorage.getItem(consentKey);
+      const saved = JSON.parse(current ?? localStorage.getItem(legacyConsentKey));
+      if (current === null && saved?.choice !== 'denied') return undefined;
       if (saved && ['granted', 'denied'].includes(saved.choice) &&
           Number.isFinite(saved.time) && saved.time <= Date.now() &&
           Date.now() - saved.time < consentLifetime) return saved.choice;
@@ -238,7 +241,7 @@
     document.getElementById('analytics-accept').focus();
   });
   window.addEventListener('storage', (event) => {
-    if (event.key === consentKey || event.key === null) applyConsent(readConsent());
+    if (event.key === consentKey || event.key === legacyConsentKey || event.key === null) applyConsent(readConsent());
   });
   window.setInterval(() => {
     const savedChoice = readConsent();

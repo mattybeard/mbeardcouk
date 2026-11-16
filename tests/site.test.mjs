@@ -35,8 +35,8 @@ for (const filename of pages) {
     for (const node of walk(document)) {
       for (const attr of node.attrs ?? []) {
         if (!['href', 'src'].includes(attr.name)) continue;
-        const url = new URL(attr.value, `https://mbeard.co.uk/${path.relative(site, filename).split(path.sep).join('/')}`);
-        if (url.origin !== 'https://mbeard.co.uk') continue;
+        const url = new URL(attr.value, `https://www.mbeard.co.uk/${path.relative(site, filename).split(path.sep).join('/')}`);
+        if (url.origin !== 'https://www.mbeard.co.uk') continue;
         const target = localFile(url.pathname);
         assert.ok(existsSync(target), `Missing file: ${attr.value}`);
         if (url.hash) assert.ok(ids(readFileSync(target, 'utf8')).includes(decodeURIComponent(url.hash.slice(1))), `Missing anchor: ${attr.value}`);
@@ -114,7 +114,7 @@ test('The index, topic pages, RSS and article paths reflect published Markdown',
     assert.match(postPath(post), /^\/blog\/\d{4}-\d{2}-\d{2}(?:-\d+)?\/$/);
     assert.ok(index.includes(`href="${postPath(post)}"`));
     const html = readFileSync(localFile(postPath(post)), 'utf8');
-    assert.ok(html.includes(`<link rel="canonical" href="https://mbeard.co.uk${postPath(post)}">`));
+    assert.ok(html.includes(`<link rel="canonical" href="https://www.mbeard.co.uk${postPath(post)}">`));
     for (const node of walk(parseFragment(renderContent(post).html))) {
       assert.ok(!['script', 'iframe', 'style'].includes(node.tagName));
       if (node.tagName === 'img') assert.ok(node.attrs.find((attr) => attr.name === 'src').value.startsWith(`${postPath(post)}images/`));
@@ -133,9 +133,9 @@ test('Sitemap lists canonical indexable pages and robots advertises it', () => {
   assert.match(sitemap, /<\/urlset>\n$/);
   const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   const expected = new Set([
-    'https://mbeard.co.uk/', 'https://mbeard.co.uk/blog/', 'https://mbeard.co.uk/privacy.html',
-    ...archive.posts.map((post) => `https://mbeard.co.uk${postPath(post)}`),
-    ...archive.tags.map((tag) => `https://mbeard.co.uk${tagPath(tag)}`),
+    'https://www.mbeard.co.uk/', 'https://www.mbeard.co.uk/blog/', 'https://www.mbeard.co.uk/privacy.html',
+    ...archive.posts.map((post) => `https://www.mbeard.co.uk${postPath(post)}`),
+    ...archive.tags.map((tag) => `https://www.mbeard.co.uk${tagPath(tag)}`),
   ]);
   assert.equal(urls.length, expected.size);
   assert.deepEqual(new Set(urls), expected);
@@ -143,10 +143,10 @@ test('Sitemap lists canonical indexable pages and robots advertises it', () => {
     const pathname = new URL(url).pathname;
     const html = readFileSync(localFile(pathname), 'utf8');
     assert.doesNotMatch(html, /<meta name="robots" content="noindex">/i);
-    if (pathname.startsWith('/blog/')) assert.ok(html.includes(`<link rel="canonical" href="${url}">`));
+    assert.ok(html.includes(`<link rel="canonical" href="${url}">`));
   }
   const robots = readFileSync(localFile('/robots.txt'), 'utf8');
-  assert.match(robots, /^Sitemap: https:\/\/mbeard\.co\.uk\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/www\.mbeard\.co\.uk\/sitemap\.xml$/m);
   assert.doesNotMatch(robots, /^Disallow:\s*\/$/mi);
 });
 

@@ -5,6 +5,7 @@ import { Marked } from 'marked';
 import { parseFragment, serialize } from 'parse5';
 
 export const escapeHtml = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+export const siteOrigin = 'https://www.mbeard.co.uk';
 export function textContent(node) {
   if (node.nodeName === '#text') return node.value;
   return (node.childNodes ?? []).map(textContent).join('');
@@ -105,9 +106,9 @@ export function renderContent(post) {
   const headings = [];
   const usedIds = new Set();
   function localUrl(value, image = false) {
-    const url = new URL(value, `https://mbeard.co.uk${postPath(post)}`);
+    const url = new URL(value, `${siteOrigin}${postPath(post)}`);
     if (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)) throw new Error(`Unsupported link in ${post.folder}: ${value}`);
-    if (url.origin !== 'https://mbeard.co.uk') {
+    if (![siteOrigin, 'https://mbeard.co.uk'].includes(url.origin)) {
       if (image) throw new Error(`Save images beside the Markdown in ${post.folder}: ${value}`);
       return url.href;
     }

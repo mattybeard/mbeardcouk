@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../site/analytics.js', import.meta.url), 'utf8');
-const consentKey = 'analytics-consent-v1';
+const consentKey = 'analytics-consent-v2';
 
 function browser({
-  hostname = 'mbeard.co.uk', protocol = 'https:', saved = null, storageBlocked = false,
+  hostname = 'www.mbeard.co.uk', protocol = 'https:', saved = null, legacySaved = null, storageBlocked = false,
   ingestionStatus = 200, hasSettings = true, pathname = '/'
 } = {}) {
   const elements = new Map();
@@ -19,6 +19,7 @@ function browser({
   const gtagCalls = [];
   const events = {};
   const storage = new Map(saved === null ? [] : [[consentKey, saved]]);
+  if (legacySaved !== null) storage.set('analytics-consent-v1', legacySaved);
   const window = {
     addEventListener: (name, handler) => { events[name] = handler; },
     setInterval: (handler) => { interval = handler; }
@@ -101,7 +102,7 @@ test('Basic counting sends one minimal event without cookies or visitor identifi
   const [event] = JSON.parse(request.body);
   assert.equal(event.data.baseType, 'EventData');
   assert.equal(event.data.baseData.name, 'BasicPageView');
-  assert.deepEqual(event.data.baseData.properties, { hostname: 'mbeard.co.uk' });
+  assert.deepEqual(event.data.baseData.properties, { hostname: 'www.mbeard.co.uk' });
   assert.deepEqual(event.tags, { 'ai.location.ip': '0.0.0.0' });
   assert.doesNotMatch(request.body, /user_Id|session_Id|ai\.user|ai\.session|refUri|"url"/);
   assert.equal(page.scripts.length, 0);
@@ -155,13 +156,13 @@ test('No analytics scripts load before consent; accept loads analytics and sends
   assert.deepEqual(calls()[2].slice(0, 2), ['config', 'G-0XV6WPE41G']);
   assert.deepEqual(calls()[2][2], {
     send_page_view: false,
-    page_location: 'https://mbeard.co.uk/article/',
+    page_location: 'https://www.mbeard.co.uk/article/',
     page_referrer: '',
     allow_google_signals: false,
     allow_ad_personalization_signals: false
   });
   assert.deepEqual(calls()[3], ['event', 'page_view', {
-    page_location: 'https://mbeard.co.uk/article/',
+    page_location: 'https://www.mbeard.co.uk/article/',
     page_title: 'Matt Beard',
     page_referrer: ''
   }]);
@@ -181,7 +182,7 @@ test('No analytics scripts load before consent; accept loads analytics and sends
   assert.equal(`${connection.get('IngestionEndpoint')}v2/track`, basicRequest.url);
   assert.equal(sdk.loaded, true);
   assert.equal(sdk.pages.length, 1);
-  assert.equal(sdk.pages[0].uri, 'https://mbeard.co.uk/article/');
+  assert.equal(sdk.pages[0].uri, 'https://www.mbeard.co.uk/article/');
   for (const setting of ['disableAjaxTracking', 'disableFetchTracking', 'disableExceptionTracking',
     'isStorageUseDisabled', 'disableFlushOnBeforeUnload', 'disableFlushOnUnload']) {
     assert.equal(sdk.config[setting], true, setting);
@@ -192,12 +193,12 @@ test('No analytics scripts load before consent; accept loads analytics and sends
   assert.equal(sdk.config.samplingPercentage, 100);
   const item = {
     baseType: 'PageviewData',
-    baseData: { uri: 'https://mbeard.co.uk/article/?private=1#secret', refUri: 'private' },
+    baseData: { uri: 'https://www.mbeard.co.uk/article/?private=1#secret', refUri: 'private' },
     ext: { trace: { name: '/article/#secret' } },
     tags: { 'ai.operation.name': '/article/#secret' }
   };
   sdk.initializer(item);
-  assert.equal(item.baseData.uri, 'https://mbeard.co.uk/article/');
+  assert.equal(item.baseData.uri, 'https://www.mbeard.co.uk/article/');
   assert.equal(item.baseData.refUri, '');
   assert.equal(item.ext.trace.name, '/article/');
   assert.equal(item.tags['ai.operation.name'], '/article/');
@@ -244,6 +245,18 @@ test('Existing accepted and rejected choices are respected', () => {
   assert.equal(denied.element('analytics-consent').hidden, true);
 });
 
+test('Previous acceptance requires new consent for GA4, while previous rejection remains in force', () => {
+  const accepted = browser({ legacySaved: savedChoice('granted') });
+  assert.equal(accepted.scripts.length, 0);
+  assert.equal(accepted.element('analytics-consent').hidden, false);
+  accepted.click('analytics-accept');
+  assert.equal(accepted.scripts.length, 2);
+  const denied = browser({ legacySaved: savedChoice('denied') });
+  assert.equal(denied.requests.length, 0);
+  assert.equal(denied.scripts.length, 0);
+  assert.equal(denied.element('analytics-consent').hidden, true);
+});
+
 test('Expired, invalid and future consent never starts analytics', () => {
   for (const saved of [
     savedChoice('granted', Date.now() - 181 * 86400000),
@@ -283,9 +296,9 @@ test('Localhost shows consent controls and loads real analytics only after accep
   }
 });
 
-test('The www host, preview hosts and production HTTP are excluded even with consent', () => {
+test('The apex host, preview hosts and production HTTP are excluded even with consent', () => {
   for (const options of [
-    { hostname: 'www.mbeard.co.uk' },
+    { hostname: 'mbeard.co.uk' },
     { hostname: 'preview.azurestaticapps.net' }, { protocol: 'http:' }
   ]) {
     const page = browser({ ...options, saved: savedChoice('granted') });

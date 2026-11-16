@@ -46,6 +46,17 @@ test('Article rendering assigns unique heading IDs and resolves article-local im
   assert.match(rendered.html, /An example caption/);
 });
 
+test('Article rendering treats both current and legacy site URLs as local', () => {
+  const article = post();
+  article.assets = [{ path: '/blog/2026-10-22/images/example.png' }];
+  for (const origin of ['https://www.mbeard.co.uk', 'https://mbeard.co.uk']) {
+    article.content = `<a href="${origin}/blog/">Blog</a><img src="${origin}/blog/2026-10-22/images/example.png" alt="Example">`;
+    const { html } = renderContent(article);
+    assert.match(html, /href="\/blog\/"/);
+    assert.match(html, /src="\/blog\/2026-10-22\/images\/example.png"/);
+  }
+});
+
 test('Article rendering rejects unsafe markup and missing or external images', () => {
   for (const html of [
     '<script>alert(1)</script>', '<iframe src="https://example.com"></iframe>',
@@ -100,13 +111,15 @@ test('Publishing Markdown updates lists, topics, feed and sitemap, excludes draf
     const feed = await read('blog', 'feed.xml');
     assert.equal([...feed.matchAll(/<item>/g)].length, 3);
     assert.ok(!feed.includes('Private draft'));
+    assert.ok(feed.includes('<link>https://www.mbeard.co.uk/blog/2026-10-22/</link>'));
+    assert.ok(feed.includes('<guid isPermaLink="false">https://mbeard.co.uk/blog/2026-10-22/</guid>'));
     const sitemap = await read('sitemap.xml');
     const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
     assert.deepEqual(new Set(urls), new Set([
-      'https://mbeard.co.uk/', 'https://mbeard.co.uk/blog/', 'https://mbeard.co.uk/privacy.html',
-      'https://mbeard.co.uk/blog/2026-10-20/', 'https://mbeard.co.uk/blog/2026-10-22/',
-      'https://mbeard.co.uk/blog/2026-10-22-2/', 'https://mbeard.co.uk/blog/tag/dataverse/',
-      'https://mbeard.co.uk/blog/tag/native-topic/',
+      'https://www.mbeard.co.uk/', 'https://www.mbeard.co.uk/blog/', 'https://www.mbeard.co.uk/privacy.html',
+      'https://www.mbeard.co.uk/blog/2026-10-20/', 'https://www.mbeard.co.uk/blog/2026-10-22/',
+      'https://www.mbeard.co.uk/blog/2026-10-22-2/', 'https://www.mbeard.co.uk/blog/tag/dataverse/',
+      'https://www.mbeard.co.uk/blog/tag/native-topic/',
     ]));
     assert.equal(urls.length, 8);
     const config = JSON.parse(await read('staticwebapp.config.json'));
@@ -122,9 +135,9 @@ test('Publishing Markdown updates lists, topics, feed and sitemap, excludes draf
     assert.ok(!existsSync(outputFile('blog', '2026-10-22')), 'A newly unpublished post and its images must be removed');
     assert.ok(!existsSync(outputFile('blog', 'tag', 'native-topic')), 'Unused topic pages must be removed');
     const updatedSitemap = await read('sitemap.xml');
-    assert.ok(!updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/2026-10-22/</loc>'));
-    assert.ok(!updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/tag/native-topic/</loc>'));
-    assert.ok(updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/2026-10-22-2/</loc>'));
+    assert.ok(!updatedSitemap.includes('<loc>https://www.mbeard.co.uk/blog/2026-10-22/</loc>'));
+    assert.ok(!updatedSitemap.includes('<loc>https://www.mbeard.co.uk/blog/tag/native-topic/</loc>'));
+    assert.ok(updatedSitemap.includes('<loc>https://www.mbeard.co.uk/blog/2026-10-22-2/</loc>'));
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' }, '[Broken link](/blog/2026-10-22/)');
     assert.throws(build, /ENOENT/, 'Links to unpublished articles must fail the build');
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' });
