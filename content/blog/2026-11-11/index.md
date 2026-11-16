@@ -7,7 +7,7 @@ tags:
   - Power Platform ToolBox
 category: Power Platform
 draft: false
-illustration: images/record-finder-illustration.jpg
+illustration: none
 ---
 
 ## A note before the draft
@@ -16,7 +16,7 @@ The post below was drafted and ready to publish before I learned, during the app
 
 The GitHub repository is now archived. I'm still publishing this post as a reminder that we can all make mistakes, rush into things and learn from them.
 
-# The PPTB Record Finder
+## The PPTB Record Finder
 
 Sometimes a log gives you useful context. At other times, a client sends you a GUID and not much else. You have an ID to investigate, but you don't know which table it belongs to.
 
