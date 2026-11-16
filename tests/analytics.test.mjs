@@ -7,8 +7,8 @@ const source = readFileSync(new URL('../site/analytics.js', import.meta.url), 'u
 const consentKey = 'analytics-consent-v1';
 
 function browser({
-  hostname = 'www.mbeard.co.uk', protocol = 'https:', saved = null, storageBlocked = false,
-  ingestionStatus = 200, hasSettings = true
+  hostname = 'mbeard.co.uk', protocol = 'https:', saved = null, storageBlocked = false,
+  ingestionStatus = 200, hasSettings = true, pathname = '/'
 } = {}) {
   const elements = new Map();
   const scripts = [];
@@ -16,8 +16,13 @@ function browser({
   const errors = [];
   const cookies = [];
   const requests = [];
+  const gtagCalls = [];
   const events = {};
   const storage = new Map(saved === null ? [] : [[consentKey, saved]]);
+  const window = {
+    addEventListener: (name, handler) => { events[name] = handler; },
+    setInterval: (handler) => { interval = handler; }
+  };
   let interval;
   let reloads = 0;
   const element = (id) => {
@@ -49,7 +54,7 @@ function browser({
     set cookie(value) { cookies.push(value); }
   };
   vm.runInNewContext(source, {
-    location: { hostname, protocol, origin: `${protocol}//${hostname}`, pathname: '/', reload: () => reloads++ },
+    location: {         hostname, protocol, origin: `${protocol}//${hostname}`, pathname, reload: () => reloads++ },
     document,
     AbortController,
     fetch: (url, options) => {
@@ -66,15 +71,18 @@ function browser({
         storage.set(key, value);
       }
     },
-    window: {
-      addEventListener: (name, handler) => { events[name] = handler; },
-      setInterval: (handler) => { interval = handler; }
-    },
+    window,
     Microsoft: { ApplicationInsights: { ApplicationInsights } },
     console: { error: (...args) => errors.push(args) }
   });
   return {
-    element, scripts, instances, errors, cookies, requests, events, storage,
+    element, scripts, instances, errors, cookies, requests, gtagCalls, events, storage,
+    loadGoogleAnalytics() {
+      const script = scripts.find((candidate) => candidate.src?.includes('googletagmanager.com'));
+      assert.ok(script, 'Google Analytics script was not added');
+      window.gtag = (...args) => gtagCalls.push(args);
+      script.onload();
+    },
     click: (id) => element(id).handlers.click(),
     tick: () => interval(),
     blockStorage: () => { storageBlocked = true; },
@@ -93,7 +101,7 @@ test('Basic counting sends one minimal event without cookies or visitor identifi
   const [event] = JSON.parse(request.body);
   assert.equal(event.data.baseType, 'EventData');
   assert.equal(event.data.baseData.name, 'BasicPageView');
-  assert.deepEqual(event.data.baseData.properties, { hostname: 'www.mbeard.co.uk' });
+  assert.deepEqual(event.data.baseData.properties, { hostname: 'mbeard.co.uk' });
   assert.deepEqual(event.tags, { 'ai.location.ip': '0.0.0.0' });
   assert.doesNotMatch(request.body, /user_Id|session_Id|ai\.user|ai\.session|refUri|"url"/);
   assert.equal(page.scripts.length, 0);
@@ -124,14 +132,44 @@ test('Basic ingestion failures are logged and shown without overriding a rejecti
   }
 });
 
-test('No SDK loads before consent; accept loads it once with minimal collection', () => {
-  const page = browser();
+test('No analytics scripts load before consent; accept loads analytics and sends sanitized page views', () => {
+  const page = browser({ pathname: '/article/' });
   assert.equal(page.scripts.length, 0);
   assert.equal(page.element('analytics-consent').hidden, false);
   page.click('analytics-accept');
   page.click('analytics-accept');
-  assert.equal(page.scripts.length, 1);
-  page.scripts[0].onload();
+  assert.equal(page.scripts.length, 2);
+  const microsoftScript = page.scripts.find((script) => script.src.includes('monitor.azure.com'));
+  const googleScript = page.scripts.find((script) => script.src.includes('googletagmanager.com'));
+  assert.equal(googleScript.src, 'https://www.googletagmanager.com/gtag/js?id=G-0XV6WPE41G');
+  assert.equal(page.gtagCalls.length, 0, 'Google Analytics commands must wait for the script to load');
+  page.loadGoogleAnalytics();
+  const calls = () => JSON.parse(JSON.stringify(page.gtagCalls));
+  assert.deepEqual(calls()[0].slice(0, 2), ['consent', 'update']);
+  assert.deepEqual(calls()[0][2], {
+    analytics_storage: 'granted',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied'
+  });
+  assert.deepEqual(calls()[2].slice(0, 2), ['config', 'G-0XV6WPE41G']);
+  assert.deepEqual(calls()[2][2], {
+    send_page_view: false,
+    page_location: 'https://mbeard.co.uk/article/',
+    page_referrer: '',
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false
+  });
+  assert.deepEqual(calls()[3], ['event', 'page_view', {
+    page_location: 'https://mbeard.co.uk/article/',
+    page_title: 'Matt Beard',
+    page_referrer: ''
+  }]);
+  const commandsAfterPageView = page.gtagCalls.length;
+  page.click('analytics-accept');
+  page.tick();
+  assert.equal(page.gtagCalls.length, commandsAfterPageView, 'Repeated consent checks must not add page views');
+  microsoftScript.onload();
   const sdk = page.instances[0];
   const basicRequest = page.requests[0];
   const basicEvent = JSON.parse(basicRequest.body)[0];
@@ -143,7 +181,7 @@ test('No SDK loads before consent; accept loads it once with minimal collection'
   assert.equal(`${connection.get('IngestionEndpoint')}v2/track`, basicRequest.url);
   assert.equal(sdk.loaded, true);
   assert.equal(sdk.pages.length, 1);
-  assert.equal(sdk.pages[0].uri, 'https://www.mbeard.co.uk/');
+  assert.equal(sdk.pages[0].uri, 'https://mbeard.co.uk/article/');
   for (const setting of ['disableAjaxTracking', 'disableFetchTracking', 'disableExceptionTracking',
     'isStorageUseDisabled', 'disableFlushOnBeforeUnload', 'disableFlushOnUnload']) {
     assert.equal(sdk.config[setting], true, setting);
@@ -154,15 +192,15 @@ test('No SDK loads before consent; accept loads it once with minimal collection'
   assert.equal(sdk.config.samplingPercentage, 100);
   const item = {
     baseType: 'PageviewData',
-    baseData: { uri: 'https://www.mbeard.co.uk/?private=1#secret', refUri: 'private' },
-    ext: { trace: { name: '/#secret' } },
-    tags: { 'ai.operation.name': '/#secret' }
+    baseData: { uri: 'https://mbeard.co.uk/article/?private=1#secret', refUri: 'private' },
+    ext: { trace: { name: '/article/#secret' } },
+    tags: { 'ai.operation.name': '/article/#secret' }
   };
   sdk.initializer(item);
-  assert.equal(item.baseData.uri, 'https://www.mbeard.co.uk/');
+  assert.equal(item.baseData.uri, 'https://mbeard.co.uk/article/');
   assert.equal(item.baseData.refUri, '');
-  assert.equal(item.ext.trace.name, '/');
-  assert.equal(item.tags['ai.operation.name'], '/');
+  assert.equal(item.ext.trace.name, '/article/');
+  assert.equal(item.tags['ai.operation.name'], '/article/');
   assert.equal(sdk.initializer({ baseType: 'ExceptionData' }), false);
 });
 
@@ -193,14 +231,14 @@ test('Pages without a settings button still count and allow consent choices', ()
     assert.equal(page.requests.length, 1);
     page.click(id);
     assert.equal(page.element('analytics-consent').hidden, true);
-    assert.equal(page.scripts.length, id === 'analytics-accept' ? 1 : 0);
+    assert.equal(page.scripts.length, id === 'analytics-accept' ? 2 : 0);
     assert.equal(page.element('privacy-link').focused, true);
     assert.equal(page.element('privacy-link').focusOptions?.preventScroll, true);
   }
 });
 
 test('Existing accepted and rejected choices are respected', () => {
-  assert.equal(browser({ saved: savedChoice('granted') }).scripts.length, 1);
+  assert.equal(browser({ saved: savedChoice('granted') }).scripts.length, 2);
   const denied = browser({ saved: savedChoice('denied') });
   assert.equal(denied.scripts.length, 0);
   assert.equal(denied.element('analytics-consent').hidden, true);
@@ -245,9 +283,9 @@ test('Localhost shows consent controls and loads real analytics only after accep
   }
 });
 
-test('Apex domain, preview hosts and production HTTP are excluded even with consent', () => {
+test('The www host, preview hosts and production HTTP are excluded even with consent', () => {
   for (const options of [
-    { hostname: 'mbeard.co.uk' },
+    { hostname: 'www.mbeard.co.uk' },
     { hostname: 'preview.azurestaticapps.net' }, { protocol: 'http:' }
   ]) {
     const page = browser({ ...options, saved: savedChoice('granted') });
@@ -261,13 +299,16 @@ test('Rejecting while the SDK downloads prevents initialization', () => {
   const page = browser();
   page.click('analytics-accept');
   page.click('analytics-reject');
-  page.scripts[0].onload();
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onload();
+  page.loadGoogleAnalytics();
   assert.equal(page.instances.length, 0);
+  assert.equal(page.gtagCalls.length, 0, 'A late Google script must not start after rejection');
 });
 
 test('Withdrawal disables telemetry, deletes cookies and reloads without flushing', () => {
   const page = browser({ saved: savedChoice('granted') });
-  page.scripts[0].onload();
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onload();
+  page.loadGoogleAnalytics();
   page.click('analytics-reject');
   assert.equal(page.instances[0].config.disableTelemetry, true);
   assert.equal(page.instances[0].paused, true);
@@ -275,12 +316,21 @@ test('Withdrawal disables telemetry, deletes cookies and reloads without flushin
   assert.equal(page.instances[0].initializer({ baseType: 'PageviewData' }), false);
   assert.ok(page.cookies.some((cookie) => cookie.startsWith('ai_user=; Max-Age=0')));
   assert.ok(page.cookies.some((cookie) => cookie.startsWith('ai_session=; Max-Age=0')));
+  assert.ok(page.cookies.some((cookie) => cookie.startsWith('_ga=; Max-Age=0')));
+  assert.ok(page.cookies.some((cookie) => cookie.startsWith('_ga_0XV6WPE41G=; Max-Age=0')));
+  assert.deepEqual(JSON.parse(JSON.stringify(page.gtagCalls.at(-1))), ['consent', 'update', {
+    analytics_storage: 'denied',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied'
+  }]);
   assert.equal(page.reloads, 1);
 });
 
 test('A choice changed in another tab stops active analytics', () => {
   const page = browser({ saved: savedChoice('granted') });
-  page.scripts[0].onload();
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onload();
+  page.loadGoogleAnalytics();
   page.storage.set(consentKey, savedChoice('denied'));
   page.events.storage({ key: consentKey });
   assert.equal(page.instances[0].config.disableTelemetry, true);
@@ -289,7 +339,8 @@ test('A choice changed in another tab stops active analytics', () => {
 
 test('Expiry while the page is open stops active analytics', () => {
   const page = browser({ saved: savedChoice('granted') });
-  page.scripts[0].onload();
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onload();
+  page.loadGoogleAnalytics();
   page.storage.set(consentKey, savedChoice('granted', Date.now() - 181 * 86400000));
   page.tick();
   assert.equal(page.reloads, 1);
@@ -307,26 +358,39 @@ test('Blocked storage leaves analytics off and reports the failure', () => {
 test('SDK download failure is visible and acceptance can retry', () => {
   const page = browser();
   page.click('analytics-accept');
-  page.scripts[0].onerror(new Error('Blocked'));
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onerror(new Error('Blocked'));
   assert.match(page.element('analytics-status').textContent, /could not load/);
   assert.equal(page.element('analytics-consent').hidden, false);
   page.click('analytics-accept');
-  assert.equal(page.scripts.length, 2);
+  assert.equal(page.scripts.filter((script) => script.src.includes('monitor.azure.com')).length, 2);
   assert.equal(page.element('analytics-status').textContent, '');
+});
+
+test('Google Analytics download failure is visible and acceptance can retry', () => {
+  const page = browser();
+  page.click('analytics-accept');
+  const googleScripts = () => page.scripts.filter((script) => script.src.includes('googletagmanager.com'));
+  googleScripts()[0].onerror(new Error('Blocked'));
+  assert.match(page.element('analytics-status').textContent, /Google Analytics could not load/);
+  page.click('analytics-accept');
+  assert.equal(googleScripts().length, 2);
+  page.loadGoogleAnalytics();
+  assert.deepEqual(JSON.parse(JSON.stringify(page.gtagCalls[3])).slice(0, 2), ['event', 'page_view']);
 });
 
 test('An SDK download failure after rejection must not reopen the consent prompt', () => {
   const page = browser();
   page.click('analytics-accept');
   page.click('analytics-reject');
-  page.scripts[0].onerror(new Error('Download failed after rejection'));
+  for (const script of page.scripts) script.onerror(new Error('Download failed after rejection'));
   assert.equal(page.element('analytics-consent').hidden, true);
   assert.equal(page.errors.length, 0);
 });
 
 test('Failed withdrawal persistence still stops telemetry without reloading stale consent', () => {
   const page = browser({ saved: savedChoice('granted') });
-  page.scripts[0].onload();
+  page.scripts.find((script) => script.src.includes('monitor.azure.com')).onload();
+  page.loadGoogleAnalytics();
   page.blockStorage();
   page.click('analytics-reject');
   assert.equal(page.instances[0].config.disableTelemetry, true);
@@ -334,13 +398,14 @@ test('Failed withdrawal persistence still stops telemetry without reloading stal
   assert.equal(page.instances[0].cookiesEnabled, false);
   assert.equal(page.reloads, 0);
   page.tick();
-  assert.equal(page.scripts.length, 1);
+  assert.equal(page.scripts.length, 2);
   assert.match(page.element('analytics-status').textContent, /could not be saved/);
 });
 
 test('CSP allows only the configured SDK and telemetry origins', () => {
   const config = JSON.parse(readFileSync(new URL('../site/staticwebapp.config.json', import.meta.url), 'utf8'));
   const policy = config.globalHeaders['Content-Security-Policy'];
-  assert.ok(policy.split('; ').includes("script-src 'self' https://js.monitor.azure.com"));
-  assert.ok(policy.split('; ').includes('connect-src https://eastus2-3.in.applicationinsights.azure.com'));
+  assert.ok(policy.split('; ').includes("script-src 'self' https://js.monitor.azure.com https://www.googletagmanager.com"));
+  assert.ok(policy.split('; ').includes('connect-src https://eastus2-3.in.applicationinsights.azure.com https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com https://www.google.com'));
+  assert.ok(policy.split('; ').includes('img-src \'self\' https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com'));
 });

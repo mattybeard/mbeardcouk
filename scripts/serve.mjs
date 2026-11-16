@@ -9,7 +9,7 @@ const config = JSON.parse(await readFile(path.join(root, 'staticwebapp.config.js
 const types = {
   '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.css': 'text/css',
   '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json', '.xml': 'application/rss+xml; charset=utf-8',
+  '.json': 'application/json', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png', '.gif': 'image/gif', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
 };
@@ -53,7 +53,8 @@ createServer(async (req, res) => {
       filename = path.join(filename, 'index.html');
     }
     const content = await readFile(filename);
-    res.writeHead(200, { ...headers, 'Content-Type': types[path.extname(filename)] ?? 'application/octet-stream' });
+    const type = pathname === '/blog/feed.xml' ? 'application/rss+xml; charset=utf-8' : types[path.extname(filename)] ?? 'application/octet-stream';
+    res.writeHead(200, { ...headers, 'Content-Type': type });
     res.end(req.method === 'HEAD' ? undefined : content);
   } catch (error) {
     if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes(error.code)) {

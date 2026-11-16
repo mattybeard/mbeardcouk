@@ -127,13 +127,36 @@ test('The index, topic pages, RSS and article paths reflect published Markdown',
   assert.ok(existsSync(localFile('/blog/2020-09-18-2/')));
 });
 
+test('Sitemap lists canonical indexable pages and robots advertises it', () => {
+  const sitemap = readFileSync(localFile('/sitemap.xml'), 'utf8');
+  assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+  assert.match(sitemap, /<\/urlset>\n$/);
+  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  const expected = new Set([
+    'https://mbeard.co.uk/', 'https://mbeard.co.uk/blog/', 'https://mbeard.co.uk/privacy.html',
+    ...archive.posts.map((post) => `https://mbeard.co.uk${postPath(post)}`),
+    ...archive.tags.map((tag) => `https://mbeard.co.uk${tagPath(tag)}`),
+  ]);
+  assert.equal(urls.length, expected.size);
+  assert.deepEqual(new Set(urls), expected);
+  for (const url of urls) {
+    const pathname = new URL(url).pathname;
+    const html = readFileSync(localFile(pathname), 'utf8');
+    assert.doesNotMatch(html, /<meta name="robots" content="noindex">/i);
+    if (pathname.startsWith('/blog/')) assert.ok(html.includes(`<link rel="canonical" href="${url}">`));
+  }
+  const robots = readFileSync(localFile('/robots.txt'), 'utf8');
+  assert.match(robots, /^Sitemap: https:\/\/mbeard\.co\.uk\/sitemap\.xml$/m);
+  assert.doesNotMatch(robots, /^Disallow:\s*\/$/mi);
+});
+
 test('Deployment configuration preserves old routes, true 404s and security headers', () => {
   const config = JSON.parse(readFileSync(localFile('/staticwebapp.config.json'), 'utf8'));
   assert.ok(readFileSync(localFile('/staticwebapp.config.json')).length < 20000);
   assert.equal(config.navigationFallback, undefined);
   assert.equal(config.responseOverrides['404'].rewrite, '/404.html');
   assert.match(config.globalHeaders['Content-Security-Policy'], /frame-ancestors 'none'/);
-  assert.match(config.globalHeaders['Content-Security-Policy'], /script-src 'self' https:\/\/js\.monitor\.azure\.com/);
+  assert.match(config.globalHeaders['Content-Security-Policy'], /script-src 'self' https:\/\/js\.monitor\.azure\.com https:\/\/www\.googletagmanager\.com/);
   assert.deepEqual(config.routes[0], { route: '/index.html', redirect: '/', statusCode: 301 });
   for (const original of history.posts) {
     const old = new URL(original.source).pathname;
@@ -186,6 +209,7 @@ test('Homepage, privacy notice and every blog page include consent controls and 
       assert.match(html, /href="\/privacy.html"/);
     }
     assert.ok(html.includes('counts page loads without cookies or visitor identifiers until you choose.'));
+    assert.ok(html.includes('Google Analytics'));
     assert.ok(html.includes('Reject analytics to stop all counting.'));
   }
 });
