@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const production = location.hostname === 'www.mbeard.co.uk' && location.protocol === 'https:';
+  const production = location.hostname === 'mbeard.co.uk' && location.protocol === 'https:';
   const localhost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   if (!production && !localhost) return;
 
@@ -9,12 +9,15 @@
   const consentLifetime = 180 * 24 * 60 * 60 * 1000;
   const instrumentationKey = '8637d04b-f24d-4a63-87ff-436b395dcb76';
   const ingestionEndpoint = 'https://eastus2-3.in.applicationinsights.azure.com';
+  const measurementId = 'G-0XV6WPE41G';
   const panel = document.getElementById('analytics-consent');
   const status = document.getElementById('analytics-status');
   const settings = document.getElementById('analytics-settings');
   let choice;
   let loading = false;
   let analytics;
+  let googleAnalyticsLoading = false;
+  let googleAnalyticsActive = false;
   let storageFailed = false;
   let basicCountSent = false;
   let basicRequest;
@@ -69,9 +72,58 @@
   }
 
   function clearAnalyticsCookies() {
-    for (const name of ['ai_user', 'ai_session']) {
+    const names = ['ai_user', 'ai_session', '_ga', `_ga_${measurementId.slice(2)}`];
+    for (const name of names) {
       document.cookie = `${name}=; Max-Age=0; Path=/; Secure; SameSite=Lax`;
+      document.cookie = `${name}=; Max-Age=0; Path=/; Domain=.mbeard.co.uk; Secure; SameSite=Lax`;
     }
+  }
+
+  function startGoogleAnalytics() {
+    if (!production || googleAnalyticsLoading) return;
+    if (googleAnalyticsActive) return;
+
+    googleAnalyticsLoading = true;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    const script = document.createElement('script');
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+    script.async = true;
+    script.onload = () => {
+      googleAnalyticsLoading = false;
+      if (choice !== 'granted' || readConsent() !== 'granted') return;
+      try {
+        window.gtag('consent', 'update', {
+          analytics_storage: 'granted',
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied'
+        });
+        window.gtag('js', new Date());
+        window.gtag('config', measurementId, {
+          send_page_view: false,
+          page_location: `${location.origin}${location.pathname}`,
+          page_referrer: '',
+          allow_google_signals: false,
+          allow_ad_personalization_signals: false
+        });
+        window.gtag('event', 'page_view', {
+          page_location: `${location.origin}${location.pathname}`,
+          page_title: document.title,
+          page_referrer: ''
+        });
+        googleAnalyticsActive = true;
+      } catch (error) {
+        reportError('Google Analytics could not start. You can reject analytics or reload to try again.', error);
+      }
+    };
+    script.onerror = (error) => {
+      googleAnalyticsLoading = false;
+      if (choice === 'granted') {
+        reportError('Google Analytics could not load. You can reject analytics or try accepting again.', error);
+      }
+    };
+    document.head.append(script);
   }
 
   function startAnalytics() {
@@ -79,55 +131,57 @@
       location.reload();
       return;
     }
-    if (loading || analytics) return;
-    loading = true;
-    const script = document.createElement('script');
-    script.src = 'https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js';
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    script.onerror = (error) => {
-      loading = false;
-      if (choice === 'granted') {
-        reportError('Analytics could not load. You can reject analytics or try accepting again.', error);
-      }
-    };
-    script.onload = () => {
-      loading = false;
-      if (choice !== 'granted' || readConsent() !== 'granted') return;
-      try {
-        analytics = new Microsoft.ApplicationInsights.ApplicationInsights({
-          config: {
-            connectionString: `InstrumentationKey=${instrumentationKey};IngestionEndpoint=${ingestionEndpoint}/`,
-            cookieCfg: { enabled: true, path: '/' },
-            disableAjaxTracking: true,
-            disableFetchTracking: true,
-            disableExceptionTracking: true,
-            enableAutoRouteTracking: false,
-            autoTrackPageVisitTime: false,
-            isStorageUseDisabled: true,
-            enableSessionStorageBuffer: false,
-            disableFlushOnBeforeUnload: true,
-            disableFlushOnUnload: true,
-            extensionConfig: { AppInsightsCfgSyncPlugin: { blkCdnCfg: true } },
-            samplingPercentage: 100,
-            maxBatchInterval: 1000
-          }
-        });
-        analytics.loadAppInsights();
-        analytics.addTelemetryInitializer((item) => {
-          if (choice !== 'granted' || item.baseType !== 'PageviewData') return false;
-          item.baseData.uri = `${location.origin}${location.pathname}`;
-          if (item.ext?.trace) item.ext.trace.name = location.pathname;
-          if (item.tags) item.tags['ai.operation.name'] = location.pathname;
-          // Referrers can contain search terms or identifiers.
-          item.baseData.refUri = '';
-        });
-        analytics.trackPageView({ name: document.title, uri: `${location.origin}${location.pathname}` });
-      } catch (error) {
-        reportError('Analytics could not start. You can reject analytics or reload to try again.', error);
-      }
-    };
-    document.head.append(script);
+    if (!loading && !analytics) {
+      loading = true;
+      const script = document.createElement('script');
+      script.src = 'https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      script.onerror = (error) => {
+        loading = false;
+        if (choice === 'granted') {
+          reportError('Analytics could not load. You can reject analytics or try accepting again.', error);
+        }
+      };
+      script.onload = () => {
+        loading = false;
+        if (choice !== 'granted' || readConsent() !== 'granted') return;
+        try {
+          analytics = new Microsoft.ApplicationInsights.ApplicationInsights({
+            config: {
+              connectionString: `InstrumentationKey=${instrumentationKey};IngestionEndpoint=${ingestionEndpoint}/`,
+              cookieCfg: { enabled: true, path: '/' },
+              disableAjaxTracking: true,
+              disableFetchTracking: true,
+              disableExceptionTracking: true,
+              enableAutoRouteTracking: false,
+              autoTrackPageVisitTime: false,
+              isStorageUseDisabled: true,
+              enableSessionStorageBuffer: false,
+              disableFlushOnBeforeUnload: true,
+              disableFlushOnUnload: true,
+              extensionConfig: { AppInsightsCfgSyncPlugin: { blkCdnCfg: true } },
+              samplingPercentage: 100,
+              maxBatchInterval: 1000
+            }
+          });
+          analytics.loadAppInsights();
+          analytics.addTelemetryInitializer((item) => {
+            if (choice !== 'granted' || item.baseType !== 'PageviewData') return false;
+            item.baseData.uri = `${location.origin}${location.pathname}`;
+            if (item.ext?.trace) item.ext.trace.name = location.pathname;
+            if (item.tags) item.tags['ai.operation.name'] = location.pathname;
+            // Referrers can contain search terms or identifiers.
+            item.baseData.refUri = '';
+          });
+          analytics.trackPageView({ name: document.title, uri: `${location.origin}${location.pathname}` });
+        } catch (error) {
+          reportError('Analytics could not start. You can reject analytics or reload to try again.', error);
+        }
+      };
+      document.head.append(script);
+    }
+    startGoogleAnalytics();
   }
 
   function applyConsent(nextChoice) {
@@ -144,8 +198,16 @@
         analytics.config.disableTelemetry = true;
         analytics.getSender().pause();
         analytics.getCookieMgr().setEnabled(false);
-        if (!storageFailed) location.reload();
       }
+      if (googleAnalyticsActive) {
+        window.gtag('consent', 'update', {
+          analytics_storage: 'denied',
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied'
+        });
+      }
+      if (!storageFailed && (analytics || googleAnalyticsActive)) location.reload();
     }
   }
 

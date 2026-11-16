@@ -52,7 +52,7 @@ function page({ title, description, pathname, body, article = false }) {
   <footer class="shell"><div class="fineprint"><span><a href="/">Back to the main site</a> / <a href="https://github.com/mattybeard">GitHub &#8599;</a> / <a href="/blog/feed.xml">RSS feed</a> / <a href="/privacy.html">Privacy</a></span><span>&copy; ${footerYear} Matt Beard</span></div></footer>
   <section id="analytics-consent" class="analytics-consent" aria-labelledby="analytics-heading" hidden>
     <h2 id="analytics-heading">Optional analytics</h2>
-    <p>This site counts page loads without cookies or visitor identifiers until you choose. Accept analytics to allow Microsoft Application Insights cookies for visitor and session counts and approximate countries, regions and cities. Reject analytics to stop all counting. Your choice does not affect the site. <a href="/privacy.html">Read the privacy notice</a>.</p>
+    <p>This site counts page loads without cookies or visitor identifiers until you choose. Accept analytics to allow Microsoft Application Insights and Google Analytics to measure page views and visitors. These services may use analytics cookies. Reject analytics to stop all counting. Your choice does not affect the site. <a href="/privacy.html">Read the privacy notice</a>.</p>
     <p id="analytics-status" role="status"></p>
     <div class="analytics-actions"><button id="analytics-accept" type="button">Accept analytics</button><button id="analytics-reject" type="button">Reject analytics</button></div>
   </section>
@@ -113,6 +113,14 @@ for (const tag of activeTags) {
     body: `<header class="intro"><div><a class="back-link" href="/blog/">&#8592; All posts</a><h1>${e(plainText(tag.name))}</h1></div><p>${items.length} ${items.length === 1 ? 'post' : 'posts'} on this topic.</p></header><section class="archive-section" aria-label="Posts on this topic">${archiveList(items, 2)}</section>`,
   }));
 }
+const sitemapPaths = ['/', '/blog/', ...posts.map(postPath), ...activeTags.map(tagPath), '/privacy.html'];
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapPaths.map((pathname) => `  <url><loc>${e(origin + pathname)}</loc></url>`).join('\n')}
+</urlset>
+`;
+await writeFile(path.join(site, 'sitemap.xml'), sitemap);
+
 const feed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matt Beard's blog</title><link>${origin}/blog/</link><description>${e(description)}</description><language>en-GB</language><atom:link href="${origin}/blog/feed.xml" rel="self" type="application/rss+xml"/>${posts.map((post) => `<item><title>${e(post.title)}</title><link>${origin}${postPath(post)}</link><guid isPermaLink="false">${e(post.history?.guid ?? origin + postPath(post))}</guid><pubDate>${new Date(post.published).toUTCString()}</pubDate><description>${e(post.description)}</description></item>`).join('')}</channel></rss>`;
 await writeFile(path.join(site, 'blog', 'feed.xml'), `${feed}\n`);
@@ -171,4 +179,4 @@ for (const [filename, document] of documents) {
     }
   }
 }
-console.log(`Built the blog, ${posts.length} articles, ${activeTags.length} topic pages and an RSS feed.`);
+console.log(`Built the blog, ${posts.length} articles, ${activeTags.length} topic pages, an RSS feed and a sitemap.`);

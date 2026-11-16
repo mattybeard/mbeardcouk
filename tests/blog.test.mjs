@@ -56,7 +56,7 @@ test('Article rendering rejects unsafe markup and missing or external images', (
   }
 });
 
-test('Publishing Markdown updates lists, topics and feed, excludes drafts and cleans stale output', async () => {
+test('Publishing Markdown updates lists, topics, feed and sitemap, excludes drafts and cleans stale output', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'mbeard-markdown-'));
   const build = () => execFileSync(process.execPath, [path.join(root, 'scripts', 'build-blog.mjs'), directory], { encoding: 'utf8', stdio: 'pipe' });
   const articleFile = (folder) => path.join(directory, 'content', 'blog', folder, 'index.md');
@@ -100,6 +100,15 @@ test('Publishing Markdown updates lists, topics and feed, excludes drafts and cl
     const feed = await read('blog', 'feed.xml');
     assert.equal([...feed.matchAll(/<item>/g)].length, 3);
     assert.ok(!feed.includes('Private draft'));
+    const sitemap = await read('sitemap.xml');
+    const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+    assert.deepEqual(new Set(urls), new Set([
+      'https://mbeard.co.uk/', 'https://mbeard.co.uk/blog/', 'https://mbeard.co.uk/privacy.html',
+      'https://mbeard.co.uk/blog/2026-10-20/', 'https://mbeard.co.uk/blog/2026-10-22/',
+      'https://mbeard.co.uk/blog/2026-10-22-2/', 'https://mbeard.co.uk/blog/tag/dataverse/',
+      'https://mbeard.co.uk/blog/tag/native-topic/',
+    ]));
+    assert.equal(urls.length, 8);
     const config = JSON.parse(await read('staticwebapp.config.json'));
     assert.ok(!config.routes.some((route) => route.route === route.redirect));
     const outputFiles = (await readdir(outputFile(), { recursive: true, withFileTypes: true }))
@@ -112,6 +121,10 @@ test('Publishing Markdown updates lists, topics and feed, excludes drafts and cl
     build();
     assert.ok(!existsSync(outputFile('blog', '2026-10-22')), 'A newly unpublished post and its images must be removed');
     assert.ok(!existsSync(outputFile('blog', 'tag', 'native-topic')), 'Unused topic pages must be removed');
+    const updatedSitemap = await read('sitemap.xml');
+    assert.ok(!updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/2026-10-22/</loc>'));
+    assert.ok(!updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/tag/native-topic/</loc>'));
+    assert.ok(updatedSitemap.includes('<loc>https://mbeard.co.uk/blog/2026-10-22-2/</loc>'));
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' }, '[Broken link](/blog/2026-10-22/)');
     assert.throws(build, /ENOENT/, 'Links to unpublished articles must fail the build');
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' });

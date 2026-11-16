@@ -22,9 +22,9 @@ API or CMS server.
 - `.github/agents/blog-author.agent.md`: the Blog author agent.
 
 The site uses Google Fonts with system fallbacks. Cookie-free page-load counting
-runs until a visitor rejects analytics. The Application Insights SDK loads only
-after consent on `https://www.mbeard.co.uk` or localhost. It counts page views,
-visitors and sessions with approximate geographic breakdowns.
+runs until a visitor rejects analytics. Application Insights loads only after
+consent on `https://mbeard.co.uk` or localhost. Google Analytics 4 also loads
+after consent on the production apex domain.
 Old design mocks remain in the ignored `mocks/` folder.
 
 ### Community-event branding
@@ -64,7 +64,7 @@ alias for the build command. Generation needs no access to the retired blog.
 ## Blog
 
 The index shows the two latest published posts, followed by the year-grouped
-"More from the blog" archive. Topic pages and an RSS feed are generated too.
+"More from the blog" archive. Topic pages, an RSS feed and a sitemap are generated too.
 All 33 imported articles retain their dates, wording, code and local images.
 Native posts do not display the imported articles' historical-software notice.
 
@@ -194,6 +194,11 @@ The existing Azure workflow already applies these settings. Canonical and RSS
 URLs use `https://mbeard.co.uk`. Configure the domain and HTTPS through the
 Azure resource's Custom domains page.
 
+The build generates `sitemap.xml` with the homepage, blog index, published
+articles, topic pages and privacy page. Drafts and redirect URLs are excluded.
+`site/robots.txt` points crawlers to the non-www sitemap. After deployment,
+submit `https://mbeard.co.uk/sitemap.xml` in Google Search Console.
+
 ### Redirects and old-domain cutover
 
 The base hosting configuration lives in `site/staticwebapp.config.json`.
@@ -217,21 +222,21 @@ Redirecting every article to the index would discard article links.
 Old `/wp-content/uploads/` paths are no longer published or redirected;
 all migrated articles link to their own `/blog/<date>/images/` files.
 
-Security headers permit local scripts, the Microsoft analytics CDN, the configured
-East US 2 ingestion endpoint, and Google Fonts styles and fonts. Embeds remain
-blocked. Change the policy deliberately if the site later needs other resources.
+Security headers permit local scripts, the Microsoft and Google Analytics scripts
+and endpoints, and Google Fonts styles and fonts. Embeds remain blocked. Change
+the policy deliberately if the site later needs other resources.
 
 ### Visitor analytics
 
 `site/analytics.js` uses the public browser connection string for Application
-Insights. It is not an Azure management credential. No backend is needed.
+Insights and GA4 measurement ID `G-0XV6WPE41G`. Neither is a secret. No backend is needed.
 `site/privacy.html` describes collection and consent. The blog page template in
 `scripts/build-blog.mjs` includes the same tracking and consent controls.
 
-- `www.mbeard.co.uk` over HTTPS and localhost support basic counting and
-  consent-based visitor analytics. Azure
-  preview hostnames and the apex domain do not load the SDK. Canonical blog URLs
-  still use the apex domain, so visits there are excluded as requested.
+- `mbeard.co.uk` over HTTPS and localhost support basic counting and consent-based
+  Application Insights. GA4 runs only on the production apex domain, so local
+  testing does not add visits to the production GA4 property. Azure preview hosts,
+  `www.mbeard.co.uk` and production HTTP do not load the analytics scripts.
 - Before a choice, a direct request sends one `BasicPageView` custom event per
   page load without loading the SDK. It contains only the time, event name and
   hostname, with `ai.location.ip` set to `0.0.0.0` to avoid geographic lookup.
@@ -248,7 +253,7 @@ Insights. It is not an Azure management credential. No backend is needed.
   send a second basic event. Do not add `BasicPageView` counts to `pageViews`;
   accepted visits occur in both datasets.
 - Localhost, `127.0.0.1` and IPv6 loopback use the real consent and tracking flow.
-  Local counts and accepted visits appear in the same Application Insights resource
+  Local counts and accepted Application Insights visits appear in the same resource
   as production visits. Filter basic events by hostname and page views by URL.
   Run `npm start` and open
   `http://localhost:4280`. Follow the footer's **Privacy** link and use
@@ -258,14 +263,16 @@ Insights. It is not an Azure management credential. No backend is needed.
   browser console. Choices are separate for each browser origin.
 - Accept and reject have equal controls. The choice lasts 180 days in local
   storage. Analytics settings lets visitors change it. Withdrawing consent
-  deletes host-only `ai_user` and `ai_session` cookies and reloads without flushing
-  queued telemetry. Other tabs also stop when the preference changes.
+  deletes Application Insights and GA4 cookies, disables both services and reloads
+  without flushing queued telemetry. Other tabs also stop when the preference changes.
   Dismissing the prompt moves keyboard focus to Analytics settings on the privacy
   page, or to a Privacy link on other pages, without scrolling.
 - Only page-view telemetry is retained by the client initializer. Query strings,
   fragments and referrers are excluded. Automatic exception, request and route
   tracking are disabled. The SDK does not persist telemetry buffers in browser
-  storage. Anchor navigation does not count as another page view.
+  storage. GA4 also receives a single page view on page load. Advertising and
+  personalization signals are disabled. Anchor navigation does not count as
+  another page view.
 - Counts describe consenting browsers, not all visitors or distinct people.
   Blockers and deleted cookies affect the totals. Geographic estimates use IP
   lookup and can be wrong, especially with VPNs.
@@ -281,7 +288,7 @@ In the Application Insights resource, open **Logs** and run:
 ```kusto
 customEvents
 | where timestamp >= ago(30d) and name == "BasicPageView"
-| where tostring(customDimensions.hostname) == "www.mbeard.co.uk"
+| where tostring(customDimensions.hostname) == "mbeard.co.uk"
 | summarize PageLoads = count() by bin(timestamp, 1d)
 | order by timestamp asc
 ```
@@ -305,9 +312,9 @@ reports. `dcount` is approximate. From the linked workspace's Logs view, use
 `AppPageViews` with `TimeGenerated`, `UserId`, `SessionId` and `ClientCountryOrRegion`
 instead. The Azure Usage views also provide user and session reports.
 
-After deployment, accept analytics on the production hostname and check the
-browser Network panel for a successful `/v2/track` request. Data can take several
-minutes to appear in Logs. Reject analytics and confirm that no further telemetry
-requests occur and that the analytics cookies disappear. Local tests mock the SDK
-and basic ingestion. Browser validation confirmed Azure accepted a localhost
-basic event; other browser flow checks intercept ingestion.
+After deployment, accept analytics on the production apex domain and check the
+browser Network panel for a successful Application Insights `/v2/track` request
+and a GA4 `/g/collect` request. Data can take several minutes to appear in Logs
+or Google Analytics reports. Reject analytics and confirm that no further
+telemetry requests occur and that the analytics cookies disappear. Local tests
+mock both analytics services and basic ingestion.
