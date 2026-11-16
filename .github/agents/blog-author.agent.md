@@ -38,8 +38,11 @@ The retired WordPress site and the former JSON article store are not used.
    `draft`. `published` is a quoted UTC timestamp such as
    `"2026-10-22T12:00:00Z"` and must match the folder date. `tags` is a list of
    names, reusing existing spelling and capitalisation. Optional `category`
-   defaults to "From the blog". Optional `illustration` is `validation`,
-   `retention` or `none`; select one by subject, not list position.
+   defaults to "From the blog". Always set `illustration` on a new post so its
+   card on `/blog/` has a featured image. Use `images/<file>` when the article
+   has a featured illustration in its `images/` folder. Otherwise choose
+   `validation` or `retention` by subject, not list position. Use `none` only
+   when the user asks for a text-only card.
 4. Set `draft: false` for an outline that should appear immediately, as requested
    by the repository owner. Identify it as an outline in its description and
    body. Use `draft: true` only when the user asks to keep it unpublished.
@@ -50,7 +53,10 @@ The retired WordPress site and the former JSON article store are not used.
    relative Markdown paths, for example `![Description](images/example.png)`.
    Use a separate local copy for shared images. Native images need no inventory
    or checksum entry. Preserve captions where supplied. Keep decorative featured
-   illustrations free of text.
+   illustrations free of text. When you add or generate a featured illustration
+   for an article, also set it as the post's `illustration` so it appears on
+   the `/blog/` card, not only inside the article. Prefer JPEG or WebP under
+   about 300 KB for featured images because the index loads them.
 
 For imported posts, preserve their publication dates, original RSS GUIDs and
 redirect history. Migration regression tests protect the original text and code.
@@ -70,7 +76,8 @@ For a refresh-only request, keep the Markdown and images unchanged.
 3. Use `npm start` for preview. It builds and serves `dist/`. After source edits,
    rebuild and refresh; restarting is needed if redirect configuration changes.
    Check the changed article and blog list at desktop and mobile widths when
-   browser tools are available.
+   browser tools are available. Confirm that a new post's card on `/blog/`
+   shows its illustration.
 4. Report the Markdown file, article URL, sections created, archive changes and
    validation results. State whether the post is an outline, completed copy or
    an unpublished draft. Distinguish local preview from a live deployment.

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mbeard.co.uk/sitemap.xml
+Sitemap: https://www.mbeard.co.uk/sitemap.xml

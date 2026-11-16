@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, cp, rm, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { parse } from 'parse5';
-import { escapeHtml as e, plainText, postPath, tagPath, renderContent, loadBlog, walk } from './blog-content.mjs';
+import { escapeHtml as e, plainText, postPath, tagPath, renderContent, loadBlog, walk, siteOrigin as origin } from './blog-content.mjs';
 import { routeKey } from './hosting.mjs';
 
 const root = process.argv[2] ? path.resolve(process.argv[2]) : fileURLToPath(new URL('../', import.meta.url));
@@ -13,7 +13,6 @@ const { posts } = archive;
 for (const post of archive.allPosts) renderContent(post);
 await rm(site, { recursive: true, force: true });
 await cp(path.join(root, 'site'), site, { recursive: true });
-const origin = 'https://mbeard.co.uk';
 const footerYear = Math.max(...posts.map((post) => Number(post.published.slice(0, 4))));
 const dateLabel = (post) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${post.date}Z`));
 function meta(post) {
@@ -66,7 +65,10 @@ const visuals = {
   none: '',
 };
 function card(post) {
-  return `<article class="post">${visuals[post.illustration]}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(post.description)}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
+  const visual = post.illustrationPath
+    ? `<div class="visual photo" aria-hidden="true"><img src="${e(post.illustrationPath)}" alt="" loading="lazy" decoding="async"></div>`
+    : visuals[post.illustration];
+  return `<article class="post">${visual}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(post.description)}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
 }
 function archiveList(items, headingLevel = 3) {
   const years = [...new Set(items.map((post) => post.date.slice(0, 4)))];
@@ -121,8 +123,9 @@ ${sitemapPaths.map((pathname) => `  <url><loc>${e(origin + pathname)}</loc></url
 `;
 await writeFile(path.join(site, 'sitemap.xml'), sitemap);
 
+// Preserve native post GUIDs when changing the public hostname.
 const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matt Beard's blog</title><link>${origin}/blog/</link><description>${e(description)}</description><language>en-GB</language><atom:link href="${origin}/blog/feed.xml" rel="self" type="application/rss+xml"/>${posts.map((post) => `<item><title>${e(post.title)}</title><link>${origin}${postPath(post)}</link><guid isPermaLink="false">${e(post.history?.guid ?? origin + postPath(post))}</guid><pubDate>${new Date(post.published).toUTCString()}</pubDate><description>${e(post.description)}</description></item>`).join('')}</channel></rss>`;
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matt Beard's blog</title><link>${origin}/blog/</link><description>${e(description)}</description><language>en-GB</language><atom:link href="${origin}/blog/feed.xml" rel="self" type="application/rss+xml"/>${posts.map((post) => `<item><title>${e(post.title)}</title><link>${origin}${postPath(post)}</link><guid isPermaLink="false">${e(post.history?.guid ?? 'https://mbeard.co.uk' + postPath(post))}</guid><pubDate>${new Date(post.published).toUTCString()}</pubDate><description>${e(post.description)}</description></item>`).join('')}</channel></rss>`;
 await writeFile(path.join(site, 'blog', 'feed.xml'), `${feed}\n`);
 
 // Replace only redirects owned by this generator, leaving the site's other rules alone.

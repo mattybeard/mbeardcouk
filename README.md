@@ -23,8 +23,8 @@ API or CMS server.
 
 The site uses Google Fonts with system fallbacks. Cookie-free page-load counting
 runs until a visitor rejects analytics. Application Insights loads only after
-consent on `https://mbeard.co.uk` or localhost. Google Analytics 4 also loads
-after consent on the production apex domain.
+consent on `https://www.mbeard.co.uk` or localhost. Google Analytics 4 also loads
+after consent on the production www domain.
 Old design mocks remain in the ignored `mocks/` folder.
 
 ### Community-event branding
@@ -117,7 +117,9 @@ Required metadata:
   item. There is no scheduled publishing.
 
 Optional `category` defaults to "From the blog". Optional `illustration` accepts
-`validation`, `retention` or `none` and controls the text-free featured image.
+`validation`, `retention` or `none` and controls the text-free featured image on
+the blog index. It also accepts a path to an image in the post's own folder,
+such as `images/example.jpg`, which the index shows as the card image.
 Omitting it uses `none`.
 
 The folder determines the permanent URL, such as `/blog/2026-10-22/`.
@@ -152,7 +154,8 @@ The agent does not commit, push or deploy unless asked.
 `content/blog-history.json` is migration metadata, not another article store.
 It contains no editable article bodies. Native posts need no history entry.
 The original RSS identifiers remain stable so subscribers do not receive the
-imported archive as new posts.
+imported archive as new posts. Native post identifiers also retain the previous
+non-www hostname; their RSS links use the current www hostname.
 
 The 140 distinct imported images have 141 article-owned copies because one image
 appears in two posts. One LinkedIn image in "The learning never stops" returns
@@ -191,13 +194,13 @@ For a new Azure Static Web App connection:
 - Keep Azure credentials in GitHub secrets, not source files.
 
 The existing Azure workflow already applies these settings. Canonical and RSS
-URLs use `https://mbeard.co.uk`. Configure the domain and HTTPS through the
+URLs use `https://www.mbeard.co.uk`. Configure the domain and HTTPS through the
 Azure resource's Custom domains page.
 
 The build generates `sitemap.xml` with the homepage, blog index, published
 articles, topic pages and privacy page. Drafts and redirect URLs are excluded.
-`site/robots.txt` points crawlers to the non-www sitemap. After deployment,
-submit `https://mbeard.co.uk/sitemap.xml` in Google Search Console.
+`site/robots.txt` points crawlers to the www sitemap. After deployment,
+submit `https://www.mbeard.co.uk/sitemap.xml` in Google Search Console.
 
 ### Redirects and old-domain cutover
 
@@ -212,8 +215,8 @@ self-redirects, and the local preview uses the same trailing-slash matching.
 
 Configure the old domain separately when ready:
 
-- Send `https://blog.mbeard.co.uk/` to `https://mbeard.co.uk/blog/`.
-- Send other old-domain paths to the same path on `https://mbeard.co.uk`,
+- Send `https://blog.mbeard.co.uk/` to `https://www.mbeard.co.uk/blog/`.
+- Send other old-domain paths to the same path on `https://www.mbeard.co.uk`,
   preserving their path and query string. The generated article redirects then
   send old dated paths to `/blog/yyyy-MM-dd/`.
 
@@ -233,10 +236,10 @@ Insights and GA4 measurement ID `G-0XV6WPE41G`. Neither is a secret. No backend 
 `site/privacy.html` describes collection and consent. The blog page template in
 `scripts/build-blog.mjs` includes the same tracking and consent controls.
 
-- `mbeard.co.uk` over HTTPS and localhost support basic counting and consent-based
-  Application Insights. GA4 runs only on the production apex domain, so local
+- `www.mbeard.co.uk` over HTTPS and localhost support basic counting and consent-based
+  Application Insights. GA4 runs only on the production www domain, so local
   testing does not add visits to the production GA4 property. Azure preview hosts,
-  `www.mbeard.co.uk` and production HTTP do not load the analytics scripts.
+  the apex domain and production HTTP do not load the analytics scripts.
 - Before a choice, a direct request sends one `BasicPageView` custom event per
   page load without loading the SDK. It contains only the time, event name and
   hostname, with `ai.location.ip` set to `0.0.0.0` to avoid geographic lookup.
@@ -259,10 +262,12 @@ Insights and GA4 measurement ID `G-0XV6WPE41G`. Neither is a secret. No backend 
   `http://localhost:4280`. Follow the footer's **Privacy** link and use
   **Analytics settings** on the privacy page to reopen the
   prompt after choosing. To test a fresh visit, run
-  `localStorage.removeItem('analytics-consent-v1'); location.reload();` in the
+  `localStorage.removeItem('analytics-consent-v1'); localStorage.removeItem('analytics-consent-v2'); location.reload();` in the
   browser console. Choices are separate for each browser origin.
 - Accept and reject have equal controls. The choice lasts 180 days in local
-  storage. Analytics settings lets visitors change it. Withdrawing consent
+  storage. Earlier rejections remain in force, but earlier acceptance requires a
+  new choice because Google Analytics has been added. Analytics settings lets
+  visitors change their choice. Withdrawing consent
   deletes Application Insights and GA4 cookies, disables both services and reloads
   without flushing queued telemetry. Other tabs also stop when the preference changes.
   Dismissing the prompt moves keyboard focus to Analytics settings on the privacy
@@ -288,7 +293,7 @@ In the Application Insights resource, open **Logs** and run:
 ```kusto
 customEvents
 | where timestamp >= ago(30d) and name == "BasicPageView"
-| where tostring(customDimensions.hostname) == "mbeard.co.uk"
+| where tostring(customDimensions.hostname) == "www.mbeard.co.uk"
 | summarize PageLoads = count() by bin(timestamp, 1d)
 | order by timestamp asc
 ```
@@ -312,7 +317,7 @@ reports. `dcount` is approximate. From the linked workspace's Logs view, use
 `AppPageViews` with `TimeGenerated`, `UserId`, `SessionId` and `ClientCountryOrRegion`
 instead. The Azure Usage views also provide user and session reports.
 
-After deployment, accept analytics on the production apex domain and check the
+After deployment, accept analytics on the production www domain and check the
 browser Network panel for a successful Application Insights `/v2/track` request
 and a GA4 `/g/collect` request. Data can take several minutes to appear in Logs
 or Google Analytics reports. Reject analytics and confirm that no further
