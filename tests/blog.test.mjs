@@ -23,12 +23,13 @@ const post = (metadata = {}, body) => ({ ...parsePost(source(metadata, body), '2
 test('Frontmatter validates required fields, dates, duplicate keys and stable folder names', () => {
   assert.equal(post().title, 'A new post');
   assert.equal(post().illustration, 'none');
+  assert.equal(post({ illustration: 'images/card.jpg' }).illustration, 'images/card.jpg');
   assert.equal(parsePost(source(), '2026-10-22-2').folder, '2026-10-22-2');
   assert.equal(parsePost(source(), '2026-10-22-10').folder, '2026-10-22-10');
   for (const metadata of [
     { title: '' }, { description: '' }, { published: 'tomorrow' }, { published: '2026-02-30T12:00:00Z' },
     { draft: 'false' }, { tags: 'Dataverse' }, { tags: ['Dataverse', 'dataverse'] },
-    { illustration: 'anything' }, { unknown: 'typo' },
+    { illustration: 'anything' }, { illustration: '../images/card.jpg' }, { illustration: 'images/card.svg' }, { unknown: 'typo' },
   ]) assert.throws(() => post(metadata));
   assert.throws(() => parsePost(source(), '2026-10-23'), /date differ/);
   assert.throws(() => parsePost(source(), '../escape'), /Invalid post folder/);
@@ -82,7 +83,7 @@ test('Publishing Markdown updates lists, topics, feed and sitemap, excludes draf
     await mkdir(path.join(directory, 'content'), { recursive: true });
     await writeFile(path.join(directory, 'content', 'blog-history.json'), '{"posts":[],"media":[]}');
     await add('2026-10-20', { title: 'Earlier', published: '2026-10-20T12:00:00Z' });
-    await add('2026-10-22', { title: 'New Markdown post', illustration: 'validation', tags: ['Native topic'] },
+    await add('2026-10-22', { title: 'New Markdown post', illustration: 'images/example.png', tags: ['Native topic'] },
       'An introduction.\n\n## Setup\n\n## Setup\n\n```js\nconst answer = 42;\n```\n\n| Name | Value |\n| --- | --- |\n| Test | 42 |\n\n![Example](images/example.png)\n\n<figcaption>An example caption.</figcaption>\n\n[Earlier post](/blog/2026-10-20/)');
     const images = path.join(directory, 'content', 'blog', '2026-10-22', 'images');
     await mkdir(images);
@@ -98,6 +99,7 @@ test('Publishing Markdown updates lists, topics, feed and sitemap, excludes draf
     assert.ok(index.includes('More from the blog.'));
     assert.ok(index.includes('Earlier'));
     assert.ok(!index.includes('Private draft'));
+    assert.match(index, /<div class="visual photo" aria-hidden="true"><img src="\/blog\/2026-10-22\/images\/example.png" alt=""/);
     const article = await read('blog', '2026-10-22', 'index.html');
     assert.match(article, /<pre><code>const answer = 42;/);
     assert.match(article, /<table>/);
@@ -140,6 +142,8 @@ test('Publishing Markdown updates lists, topics, feed and sitemap, excludes draf
     assert.ok(updatedSitemap.includes('<loc>https://www.mbeard.co.uk/blog/2026-10-22-2/</loc>'));
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' }, '[Broken link](/blog/2026-10-22/)');
     assert.throws(build, /ENOENT/, 'Links to unpublished articles must fail the build');
+    await add('2026-10-24', { published: '2026-10-24T12:00:00Z', illustration: 'images/missing.png' });
+    assert.throws(build, /Missing illustration image/, 'Card images must exist beside the Markdown');
     await add('2026-10-24', { published: '2026-10-24T12:00:00Z' });
     const configPath = path.join(directory, 'site', 'staticwebapp.config.json');
     const baseConfig = JSON.parse(await readFile(configPath, 'utf8'));

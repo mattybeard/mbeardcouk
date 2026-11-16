@@ -117,7 +117,9 @@ Required metadata:
   item. There is no scheduled publishing.
 
 Optional `category` defaults to "From the blog". Optional `illustration` accepts
-`validation`, `retention` or `none` and controls the text-free featured image.
+`validation`, `retention` or `none` and controls the text-free featured image on
+the blog index. It also accepts a path to an image in the post's own folder,
+such as `images/example.jpg`, which the index shows as the card image.
 Omitting it uses `none`.
 
 The folder determines the permanent URL, such as `/blog/2026-10-22/`.

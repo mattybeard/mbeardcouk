@@ -65,7 +65,10 @@ const visuals = {
   none: '',
 };
 function card(post) {
-  return `<article class="post">${visuals[post.illustration]}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(post.description)}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
+  const visual = post.illustrationPath
+    ? `<div class="visual photo" aria-hidden="true"><img src="${e(post.illustrationPath)}" alt="" loading="lazy" decoding="async"></div>`
+    : visuals[post.illustration];
+  return `<article class="post">${visual}<div class="post-body">${meta(post)}<h2><a href="${postPath(post)}">${e(post.title)}</a></h2><p>${e(post.description)}</p><a class="text-link" href="${postPath(post)}">Read the post <span aria-hidden="true">&#8594;</span></a></div></article>`;
 }
 function archiveList(items, headingLevel = 3) {
   const years = [...new Set(items.map((post) => post.date.slice(0, 4)))];

@@ -7,7 +7,7 @@ tags:
   - Power Platform ToolBox
 category: Power Platform
 draft: false
-illustration: none
+illustration: images/record-finder-illustration.jpg
 ---
 
 ## A note before the draft

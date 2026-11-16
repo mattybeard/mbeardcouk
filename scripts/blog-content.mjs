@@ -21,6 +21,7 @@ export function* walk(node) {
 
 const folderPattern = /^\d{4}-\d{2}-\d{2}(?:-(?:[2-9]|[1-9]\d+))?$/;
 const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const imagePattern = /^[\w.-]+\.(png|gif|jpe?g|webp)$/i;
 // Explicit Markdown links avoid GFM autolinks swallowing escaped punctuation in prose.
 const markdown = new Marked({ gfm: true, breaks: false }, { tokenizer: { url() { return undefined; } } });
 export function parsePost(source, folder) {
@@ -47,7 +48,10 @@ export function parsePost(source, folder) {
   }
   if (new Set(data.tags.map(tagSlug)).size !== data.tags.length) throw new Error(`Duplicate tags in ${folder}`);
   if (data.category !== undefined && (typeof data.category !== 'string' || !data.category.trim())) throw new Error(`Invalid category in ${folder}`);
-  if (data.illustration !== undefined && !['validation', 'retention', 'none'].includes(data.illustration)) throw new Error(`Invalid illustration in ${folder}`);
+  if (data.illustration !== undefined && !['validation', 'retention', 'none'].includes(data.illustration) &&
+      !(typeof data.illustration === 'string' && /^images\/[\w.-]+\.(png|gif|jpe?g|webp)$/i.test(data.illustration))) {
+    throw new Error(`Invalid illustration in ${folder}`);
+  }
   if (!match[2].trim()) throw new Error(`Empty article in ${folder}`);
   return {
     folder, title: data.title, description: data.description, published: data.published,
@@ -76,11 +80,16 @@ export async function loadBlog(root) {
       if (asset.name === 'index.md' && asset.isFile()) continue;
       if (asset.name !== 'images' || !asset.isDirectory()) throw new Error(`Unexpected article asset: ${entry.name}/${asset.name}`);
       for (const image of await readdir(path.join(sourceDirectory, 'images'), { withFileTypes: true })) {
-        if (!image.isFile() || !/^[\w.-]+\.(png|gif|jpe?g|webp)$/i.test(image.name)) throw new Error(`Invalid image: ${entry.name}/${image.name}`);
+        if (!image.isFile() || !imagePattern.test(image.name)) throw new Error(`Invalid image: ${entry.name}/${image.name}`);
         const filename = path.join(sourceDirectory, 'images', image.name);
         if (!(await stat(filename)).size) throw new Error(`Empty image: ${filename}`);
         post.assets.push({ filename, path: `${postPath(post)}images/${image.name}` });
       }
+    }
+    if (post.illustration.startsWith('images/')) {
+      const imagePath = `${postPath(post)}${post.illustration}`;
+      if (!post.assets.some((asset) => asset.path === imagePath)) throw new Error(`Missing illustration image in ${post.folder}: ${post.illustration}`);
+      post.illustrationPath = imagePath;
     }
     allPosts.push(post);
   }
